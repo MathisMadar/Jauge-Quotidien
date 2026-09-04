@@ -103,6 +103,7 @@
 
   input[type="range"] {
     -webkit-appearance: none;
+    appearance: none;
     width: 100%;
     height: 6px;
     border-radius: 3px;
@@ -384,6 +385,7 @@ const firebaseConfig = {
   appId: "1:135326627086:web:4b0495bffef1b4ae9bd35f"
 };
 
+// Chemin secret dans la base, comme pour la note partagée.
 const SECRET_PATH = "Jauge-09-Quotidien-xyz";
 
 firebase.initializeApp(firebaseConfig);
@@ -398,16 +400,18 @@ const QUESTIONS = [
   "Quelle est ta motivation pour la journée ?",
   "As-tu envie de voir du monde aujourd'hui ?",
   "Quel est ton niveau de concentration ?",
-  "As-tu envie de parler à quelqu'un aujourd'hui ?",
+  "As-tu envie de parler aujourd'hui ?",
   "Quel est ton humeur générale ?",
-  "Es-tu aigri aujourd'hui ?",
   "As-tu envie de bouger ou faire du sport ?",
   "Quel est ton niveau de patience aujourd'hui ?",
-  "As-tu bien mangé aujourd'hui ?",
-  "Est-ce que tu vas être gentille aujourd'hui ?",
+  "As-tu bien mangé ce matin ?",
+  "Quel est ton niveau de calme ?",
+  "Es-tu gentille aujourd'hui ?",
+  "Est-ce que tu es en paix avec toi même ?",
   "As-tu envie de faire quelque chose de nouveau ?",
   "Quel est ton niveau de confiance aujourd'hui ?",
   "As-tu eu le temps de souffler aujourd'hui ?",
+  "Quel est ton niveau de curiosité ?",
   "As-tu envie de rester seul aujourd'hui ?",
   "Quel est ton niveau de satisfaction général ?",
   "As-tu envie de rire aujourd'hui ?",
@@ -420,11 +424,11 @@ const QUESTIONS = [
   "Quel est ton niveau d'impatience aujourd'hui ?",
   "As-tu envie d'écouter de la musique aujourd'hui ?",
   "Quel est ton niveau de nostalgie ?",
-  "Es-tu en paix avec toi même ?",
   "As-tu envie de lire quelque chose aujourd'hui ?",
   "Quel est ton niveau de créativité ?",
   "As-tu envie de dormir tôt ce soir ?",
   "Quel est ton niveau de sérénité ?",
+  "As-tu envie de faire du rangement aujourd'hui ?",
   "Quel est ton niveau d'appétit ?",
   "As-tu envie de voyager en ce moment ?",
   "Quel est ton niveau de distraction ?",
