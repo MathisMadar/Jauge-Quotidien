@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Jauge du jour</title>
+<link rel="manifest" href="data:application/manifest+json,{%22name%22:%22Jauge%20du%20jour%22,%22short_name%22:%22Jauge%22,%22display%22:%22standalone%22,%22start_url%22:%22.%22,%22background_color%22:%22%23F5F1E8%22,%22theme_color%22:%22%23F5F1E8%22}">
+<style>
+  :root {
+    --bg: #FFF3D6;
+    --card: #FFFFFF;
+    --text: #2B2620;
+    --text-soft: #9C8F6E;
+    --line: #FBE3A8;
+    --a-color: #FF6F59;
+    --b-color: #2EC4B6;
+    --radius: 18px;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 18px 40px;
+  }
+
+  .app {
+    width: 100%;
+    max-width: 420px;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 24px;
+  }
+
+  header h1 {
+    font-size: 20px;
+    font-weight: 600;
+    margin: 0 0 4px;
+  }
+
+  header .date {
+    font-size: 13px;
+    color: var(--text-soft);
+    text-transform: capitalize;
+  }
+
+  nav.tabs {
+    display: flex;
+    gap: 6px;
+    background: var(--line);
+    border-radius: 12px;
+    padding: 4px;
+    margin-bottom: 20px;
+  }
+
+  nav.tabs button {
+    flex: 1;
+    border: none;
+    background: transparent;
+    padding: 8px 0;
+    border-radius: 9px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-soft);
+    cursor: pointer;
+  }
+
+  nav.tabs button.active {
+    background: var(--card);
+    color: var(--text);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+  }
+
+  .card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 24px 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  }
+
+  .question {
+    font-size: 18px;
+    line-height: 1.4;
+    margin: 0 0 28px;
+    font-weight: 500;
+  }
+
+  .slider-row {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--line);
+    outline: none;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--text);
+    cursor: pointer;
+    border: 3px solid var(--card);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+  }
+
+  .scale-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--text-soft);
+  }
+
+  .value-display {
+    text-align: center;
+    font-size: 32px;
+    font-weight: 600;
+    margin: 4px 0 20px;
+  }
+
+  button.primary {
+    width: 100%;
+    border: none;
+    background: var(--text);
+    color: var(--bg);
+    font-size: 15px;
+    font-weight: 600;
+    padding: 13px 0;
+    border-radius: 12px;
+    cursor: pointer;
+  }
+
+  button.primary:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+
+  .waiting {
+    text-align: center;
+    color: var(--text-soft);
+    font-size: 14px;
+    padding: 20px 0 4px;
+  }
+
+  .compare {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-top: 4px;
+  }
+
+  .compare-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .compare-label {
+    width: 56px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .compare-label.a { color: var(--a-color); }
+  .compare-label.b { color: var(--b-color); }
+
+  .bar-track {
+    flex: 1;
+    height: 10px;
+    background: var(--line);
+    border-radius: 5px;
+    overflow: hidden;
+  }
+
+  .bar-fill {
+    height: 100%;
+    border-radius: 5px;
+  }
+
+  .bar-fill.a { background: var(--a-color); }
+  .bar-fill.b { background: var(--b-color); }
+
+  .compare-value {
+    width: 22px;
+    text-align: right;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  /* Historique */
+  .history-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+  }
+
+  .day-cell {
+    aspect-ratio: 1;
+    border-radius: 6px;
+    background: var(--line);
+    position: relative;
+  }
+
+  .day-cell.filled { cursor: pointer; }
+
+  .day-cell .num {
+    position: absolute;
+    top: 3px;
+    left: 5px;
+    font-size: 9px;
+    color: rgba(0,0,0,0.35);
+  }
+
+  .legend {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 16px;
+    font-size: 11px;
+    color: var(--text-soft);
+  }
+
+  .legend-swatch {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+  }
+
+  .day-detail {
+    margin-top: 16px;
+    padding: 14px 16px;
+    background: var(--line);
+    border-radius: 12px;
+    font-size: 13px;
+    display: none;
+  }
+
+  .day-detail.visible { display: block; }
+
+  .day-detail .q {
+    color: var(--text-soft);
+    margin-bottom: 8px;
+  }
+
+  .setup-overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 24px;
+    text-align: center;
+  }
+
+  .setup-overlay p {
+    color: var(--text-soft);
+    font-size: 14px;
+    max-width: 280px;
+  }
+
+  .setup-choices {
+    display: flex;
+    gap: 12px;
+  }
+
+  .setup-choices button {
+    border: 2px solid var(--line);
+    background: var(--card);
+    padding: 14px 22px;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div id="setup" class="setup-overlay hidden">
+  <h1>Jauge du jour</h1>
+  <p>Avant de commencer, indique qui tu es. Ce choix reste sur cet appareil.</p>
+  <div class="setup-choices">
+    <button data-user="A">Personne A</button>
+    <button data-user="B">Personne B</button>
+  </div>
+</div>
+
+<div class="app">
+  <header>
+    <h1>Jauge du jour</h1>
+    <div class="date" id="today-date"></div>
+  </header>
+
+  <nav class="tabs">
+    <button id="tab-today" class="active">Aujourd'hui</button>
+    <button id="tab-history">Historique</button>
+  </nav>
+
+  <section id="view-today" class="card">
+    <p class="question" id="question-text"></p>
+
+    <div id="answer-zone">
+      <div class="value-display" id="slider-value">5</div>
+      <div class="slider-row">
+        <input type="range" id="slider" min="1" max="10" value="5" step="1">
+        <div class="scale-labels">
+          <span>1</span>
+          <span>10</span>
+        </div>
+      </div>
+      <button class="primary" id="submit-btn" style="margin-top:20px;">Valider</button>
+    </div>
+
+    <div id="waiting-zone" class="hidden">
+      <p class="waiting">Réponse enregistrée. En attente de l'autre personne.</p>
+    </div>
+
+    <div id="compare-zone" class="hidden">
+      <div class="compare">
+        <div class="compare-row">
+          <span class="compare-label a">A</span>
+          <div class="bar-track"><div class="bar-fill a" id="bar-a"></div></div>
+          <span class="compare-value" id="val-a"></span>
+        </div>
+        <div class="compare-row">
+          <span class="compare-label b">B</span>
+          <div class="bar-track"><div class="bar-fill b" id="bar-b"></div></div>
+          <span class="compare-value" id="val-b"></span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="view-history" class="card hidden">
+    <div class="history-grid" id="history-grid"></div>
+    <div class="legend">
+      <span>Proches</span>
+      <div class="legend-swatch" style="background:#DDEAD8;"></div>
+      <div class="legend-swatch" style="background:#F3E3B5;"></div>
+      <div class="legend-swatch" style="background:#F0C3B5;"></div>
+      <span>Éloignés</span>
+    </div>
+    <div class="day-detail" id="day-detail"></div>
+  </section>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script>
+/* ---------- Configuration ---------- */
+
+// Remplace ces valeurs par celles de ton propre projet Firebase
+// (les mêmes identifiants que pour "film-rathis", ou un nouveau projet dédié).
+const firebaseConfig = {
+  apiKey: "AIzaSyDYS45LGIAp4tb1SzteAn-iTQwDtDz9LlI",
+  authDomain: "jauge-quotidien.firebaseapp.com",
+  databaseURL: "https://jauge-quotidien-default-rtdb.firebaseio.com",
+  projectId: "jauge-quotidien",
+  storageBucket: "jauge-quotidien.firebasestorage.app",
+  messagingSenderId: "135326627086",
+  appId: "1:135326627086:web:4b0495bffef1b4ae9bd35f"
+};
+
+const SECRET_PATH = "Jauge-09-Quotidien-xyz";
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+/* ---------- Questions (une par jour, rotation annuelle) ---------- */
+
+const QUESTIONS = [
+  "Quel est ton niveau d'énergie aujourd'hui ?",
+  "Comment as-tu dormi cette nuit ?",
+  "Quel est ton niveau de stress aujourd'hui ?",
+  "Quelle est ta motivation pour la journée ?",
+  "As-tu envie de voir du monde aujourd'hui ?",
+  "Quel est ton niveau de concentration ?",
+  "As-tu envie de parler à quelqu'un aujourd'hui ?",
+  "Quel est ton humeur générale ?",
+  "Es-tu aigri aujourd'hui ?",
+  "As-tu envie de bouger ou faire du sport ?",
+  "Quel est ton niveau de patience aujourd'hui ?",
+  "As-tu bien mangé aujourd'hui ?",
+  "Est-ce que tu vas être gentille aujourd'hui ?",
+  "As-tu envie de faire quelque chose de nouveau ?",
+  "Quel est ton niveau de confiance aujourd'hui ?",
+  "As-tu eu le temps de souffler aujourd'hui ?",
+  "As-tu envie de rester seul aujourd'hui ?",
+  "Quel est ton niveau de satisfaction général ?",
+  "As-tu envie de rire aujourd'hui ?",
+  "Quel est ton niveau de fatigue mentale ?",
+  "As-tu envie de sortir prendre l'air ?",
+  "Quel est ton niveau d'organisation aujourd'hui ?",
+  "As-tu envie de cuisiner quelque chose aujourd'hui ?",
+  "Quel est ton niveau d'optimisme ?",
+  "As-tu envie de faire une pause dans ta journée ?",
+  "Quel est ton niveau d'impatience aujourd'hui ?",
+  "As-tu envie d'écouter de la musique aujourd'hui ?",
+  "Quel est ton niveau de nostalgie ?",
+  "Es-tu en paix avec toi même ?",
+  "As-tu envie de lire quelque chose aujourd'hui ?",
+  "Quel est ton niveau de créativité ?",
+  "As-tu envie de dormir tôt ce soir ?",
+  "Quel est ton niveau de sérénité ?",
+  "Quel est ton niveau d'appétit ?",
+  "As-tu envie de voyager en ce moment ?",
+  "Quel est ton niveau de distraction ?",
+  "As-tu envie de faire du sport cette semaine ?",
+  "Quel est ton niveau d'énergie sociale ?",
+  "As-tu passé un bon moment aujourd'hui ?",
+  "Quel est ton niveau global de bien-être aujourd'hui ?"
+];
+
+function dayOfYear(date) {
+  const start = new Date(date.getFullYear(), 0, 0);
+  const diff = date - start;
+  return Math.floor(diff / 86400000);
+}
+
+function dateKey(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function questionForDate(date) {
+  const idx = dayOfYear(date) % QUESTIONS.length;
+  return QUESTIONS[idx];
+}
+
+/* ---------- Identité (A ou B), stockée sur l'appareil ---------- */
+
+let ME = localStorage.getItem("jauge_user");
+const OTHER = () => (ME === "A" ? "B" : "A");
+
+const setupEl = document.getElementById("setup");
+if (!ME) {
+  setupEl.classList.remove("hidden");
+  setupEl.querySelectorAll("button[data-user]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      ME = btn.dataset.user;
+      localStorage.setItem("jauge_user", ME);
+      setupEl.classList.add("hidden");
+      init();
+    });
+  });
+} 
+
+/* ---------- Onglets ---------- */
+
+const tabToday = document.getElementById("tab-today");
+const tabHistory = document.getElementById("tab-history");
+const viewToday = document.getElementById("view-today");
+const viewHistory = document.getElementById("view-history");
+
+tabToday.addEventListener("click", () => {
+  tabToday.classList.add("active");
+  tabHistory.classList.remove("active");
+  viewToday.classList.remove("hidden");
+  viewHistory.classList.add("hidden");
+});
+
+tabHistory.addEventListener("click", () => {
+  tabHistory.classList.add("active");
+  tabToday.classList.remove("active");
+  viewHistory.classList.remove("hidden");
+  viewToday.classList.add("hidden");
+  loadHistory();
+});
+
+/* ---------- Vue du jour ---------- */
+
+const today = new Date();
+document.getElementById("today-date").textContent =
+  today.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+
+const question = questionForDate(today);
+document.getElementById("question-text").textContent = question;
+
+const key = dateKey(today);
+const slider = document.getElementById("slider");
+const sliderValue = document.getElementById("slider-value");
+const submitBtn = document.getElementById("submit-btn");
+const answerZone = document.getElementById("answer-zone");
+const waitingZone = document.getElementById("waiting-zone");
+const compareZone = document.getElementById("compare-zone");
+
+slider.addEventListener("input", () => {
+  sliderValue.textContent = slider.value;
+});
+
+function init() {
+  const dayRef = db.ref(`${SECRET_PATH}/${key}`);
+
+  submitBtn.addEventListener("click", () => {
+    dayRef.child(ME).set(Number(slider.value));
+  });
+
+  dayRef.on("value", snap => {
+    const data = snap.val() || {};
+    const mine = data[ME];
+    const theirs = data[OTHER()];
+
+    if (mine === undefined) {
+      answerZone.classList.remove("hidden");
+      waitingZone.classList.add("hidden");
+      compareZone.classList.add("hidden");
+      return;
+    }
+
+    if (theirs === undefined) {
+      answerZone.classList.add("hidden");
+      waitingZone.classList.remove("hidden");
+      compareZone.classList.add("hidden");
+      return;
+    }
+
+    answerZone.classList.add("hidden");
+    waitingZone.classList.add("hidden");
+    compareZone.classList.remove("hidden");
+
+    const valA = data["A"];
+    const valB = data["B"];
+    document.getElementById("val-a").textContent = valA;
+    document.getElementById("val-b").textContent = valB;
+    document.getElementById("bar-a").style.width = `${valA * 10}%`;
+    document.getElementById("bar-b").style.width = `${valB * 10}%`;
+  });
+}
+
+if (ME) init();
+
+/* ---------- Historique ---------- */
+
+let historyLoaded = false;
+
+function colorForGap(gap) {
+  // gap va de 0 à 9. Proche = vert doux, éloigné = corail doux.
+  if (gap <= 1) return "#DDEAD8";
+  if (gap <= 3) return "#EDE3B8";
+  if (gap <= 5) return "#F3E3B5";
+  return "#F0C3B5";
+}
+
+function loadHistory() {
+  if (historyLoaded) return;
+  historyLoaded = true;
+
+  db.ref(SECRET_PATH).once("value", snap => {
+    const all = snap.val() || {};
+    const days = Object.keys(all).sort(); // ordre chronologique
+
+    const grid = document.getElementById("history-grid");
+    grid.innerHTML = "";
+
+    days.forEach(d => {
+      const entry = all[d];
+      const cell = document.createElement("div");
+      cell.className = "day-cell";
+
+      const num = document.createElement("div");
+      num.className = "num";
+      num.textContent = d.slice(-2);
+      cell.appendChild(num);
+
+      if (entry.A !== undefined && entry.B !== undefined) {
+        const gap = Math.abs(entry.A - entry.B);
+        cell.style.background = colorForGap(gap);
+        cell.classList.add("filled");
+        cell.addEventListener("click", () => showDayDetail(d, entry));
+      }
+
+      grid.appendChild(cell);
+    });
+  });
+}
+
+function showDayDetail(d, entry) {
+  const detail = document.getElementById("day-detail");
+  const dateObj = new Date(d);
+  const q = questionForDate(dateObj);
+  detail.innerHTML = `
+    <div class="q">${dateObj.toLocaleDateString("fr-FR", { day: "numeric", month: "long" })} — ${q}</div>
+    <div>A : ${entry.A} &nbsp;·&nbsp; B : ${entry.B}</div>
+  `;
+  detail.classList.add("visible");
+}
+</script>
+</body>
+</html>
