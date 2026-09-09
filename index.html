@@ -3,8 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Jauge du jour</title>
-<link rel="manifest" href="data:application/manifest+json,{%22name%22:%22Jauge%20du%20jour%22,%22short_name%22:%22Jauge%22,%22display%22:%22standalone%22,%22start_url%22:%22.%22,%22background_color%22:%22%23FFF3D6%22,%22theme_color%22:%22%23FFF3D6%22}">
+<title>Notre question du jour</title>
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="manifest" href="manifest.json">
 <style>
   :root {
     --bg: #FFF3D6;
@@ -152,6 +154,69 @@
     color: var(--text-soft);
     font-size: 14px;
     padding: 20px 0 4px;
+  }
+
+  /* Animation de validation */
+  .confirm-zone {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    padding: 24px 0 8px;
+  }
+
+  .confirm-zone.visible { display: flex; }
+
+  .check-circle {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: var(--b-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform: scale(0);
+    animation: pop 420ms cubic-bezier(0.2, 1.4, 0.4, 1) forwards;
+  }
+
+  @keyframes pop {
+    0%   { transform: scale(0); }
+    70%  { transform: scale(1.12); }
+    100% { transform: scale(1); }
+  }
+
+  .check-circle svg { width: 36px; height: 36px; }
+
+  .check-circle path {
+    stroke: #FFFFFF;
+    stroke-width: 4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    fill: none;
+    stroke-dasharray: 30;
+    stroke-dashoffset: 30;
+    animation: draw 320ms ease-out 260ms forwards;
+  }
+
+  @keyframes draw {
+    to { stroke-dashoffset: 0; }
+  }
+
+  .confirm-zone .confirm-text {
+    font-size: 14px;
+    color: var(--text-soft);
+    opacity: 0;
+    animation: fade-up 320ms ease-out 420ms forwards;
+  }
+
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .bar-fill {
+    transition: width 600ms cubic-bezier(0.2, 0.8, 0.3, 1);
   }
 
   .error-msg {
@@ -322,7 +387,7 @@
 <body>
 
 <div id="setup" class="setup-overlay hidden">
-  <h1>Jauge du jour</h1>
+  <h1>Notre question du jour</h1>
   <p>Avant de commencer, indique qui tu es. Ce choix reste sur cet appareil.</p>
   <div class="setup-choices">
     <button data-user="A">Clara</button>
@@ -332,7 +397,7 @@
 
 <div class="app">
   <header>
-    <h1>Jauge du jour</h1>
+    <h1>Notre question du jour</h1>
     <div class="date" id="today-date"></div>
   </header>
 
@@ -354,6 +419,13 @@
         </div>
       </div>
       <button class="primary" id="submit-btn" style="margin-top:20px;">Valider</button>
+    </div>
+
+    <div id="confirm-zone" class="confirm-zone">
+      <div class="check-circle">
+        <svg viewBox="0 0 24 24"><path d="M4 12.5 L9.5 18 L20 6.5"/></svg>
+      </div>
+      <span class="confirm-text">Réponse envoyée</span>
     </div>
 
     <div id="waiting-zone" class="hidden">
@@ -547,6 +619,34 @@ const submitBtn = document.getElementById("submit-btn");
 const answerZone = document.getElementById("answer-zone");
 const waitingZone = document.getElementById("waiting-zone");
 const compareZone = document.getElementById("compare-zone");
+const confirmZone = document.getElementById("confirm-zone");
+
+// Bloque l'affichage du résultat pendant l'animation de validation
+let animating = false;
+let pendingRender = null;
+
+function playConfirmAnimation() {
+  animating = true;
+  answerZone.classList.add("hidden");
+  waitingZone.classList.add("hidden");
+  compareZone.classList.add("hidden");
+
+  // Relance les animations CSS depuis le début
+  const circle = confirmZone.querySelector(".check-circle");
+  const clone = circle.cloneNode(true);
+  circle.replaceWith(clone);
+  confirmZone.classList.add("visible");
+
+  setTimeout(() => {
+    confirmZone.classList.remove("visible");
+    animating = false;
+    if (pendingRender) {
+      const render = pendingRender;
+      pendingRender = null;
+      render();
+    }
+  }, 1300);
+}
 
 // La valeur n'apparaît qu'une fois le curseur relâché
 slider.addEventListener("change", () => {
@@ -559,15 +659,32 @@ function init() {
   submitBtn.addEventListener("click", () => {
     const value = Math.round(parseFloat(slider.value) * 10) / 10;
     submitBtn.disabled = true;
+    playConfirmAnimation();
     dayRef.child(ME).set(value)
       .catch(err => {
         submitBtn.disabled = false;
+        animating = false;
+        pendingRender = null;
+        confirmZone.classList.remove("visible");
+        answerZone.classList.remove("hidden");
         showError("Échec de l'enregistrement : " + err.message);
       });
   });
 
   dayRef.on("value", snap => {
     const data = snap.val() || {};
+
+    if (animating) {
+      pendingRender = () => render(data);
+      return;
+    }
+    render(data);
+  }, err => {
+    showError("Lecture refusée par la base : " + err.message
+      + ". Vérifie que les règles Firebase autorisent le chemin utilisé.");
+  });
+
+  function render(data) {
     const mine = data[ME];
     const theirs = data[OTHER()];
 
@@ -594,12 +711,12 @@ function init() {
     const valB = Number(data["B"]);
     document.getElementById("val-a").textContent = valA.toFixed(1);
     document.getElementById("val-b").textContent = valB.toFixed(1);
-    document.getElementById("bar-a").style.width = `${(valA - 1) * (100 / 9)}%`;
-    document.getElementById("bar-b").style.width = `${(valB - 1) * (100 / 9)}%`;
-  }, err => {
-    showError("Lecture refusée par la base : " + err.message
-      + ". Vérifie que les règles Firebase autorisent le chemin utilisé.");
-  });
+    // Petit délai pour que la transition CSS des barres soit visible
+    requestAnimationFrame(() => {
+      document.getElementById("bar-a").style.width = `${(valA - 1) * (100 / 9)}%`;
+      document.getElementById("bar-b").style.width = `${(valB - 1) * (100 / 9)}%`;
+    });
+  }
 }
 
 if (ME) init();
