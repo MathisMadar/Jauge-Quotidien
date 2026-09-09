@@ -127,12 +127,37 @@
     color: var(--text-soft);
   }
 
+  .value-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    margin: 4px 0 20px;
+  }
+
+  .step-btn {
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: 50%;
+    background: var(--line);
+    color: var(--text);
+    font-size: 22px;
+    font-weight: 600;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .step-btn:active { transform: scale(0.92); }
+
   .value-display {
     text-align: center;
     font-size: 32px;
     font-weight: 600;
-    margin: 4px 0 20px;
-    min-height: 40px;
+    min-width: 90px;
   }
 
   button.primary {
@@ -218,6 +243,113 @@
   .bar-fill {
     transition: width 600ms cubic-bezier(0.2, 0.8, 0.3, 1);
   }
+
+  /* Fil de discussion */
+  .quick-send {
+    margin-top: 22px;
+    border-top: 1px solid var(--line);
+    padding-top: 18px;
+  }
+
+  .thread-title {
+    font-size: 12px;
+    color: var(--text-soft);
+    font-weight: 600;
+    margin-bottom: 12px;
+  }
+
+  .thread-messages {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 200px;
+    max-height: 55vh;
+    overflow-y: auto;
+    margin-bottom: 14px;
+  }
+
+  .msg {
+    max-width: 78%;
+    padding: 9px 13px;
+    border-radius: 16px;
+    font-size: 14px;
+    line-height: 1.35;
+    word-wrap: break-word;
+  }
+
+  .msg.mine {
+    align-self: flex-end;
+    background: var(--text);
+    color: var(--bg);
+    border-bottom-right-radius: 5px;
+  }
+
+  .msg.theirs {
+    align-self: flex-start;
+    background: var(--line);
+    color: var(--text);
+    border-bottom-left-radius: 5px;
+  }
+
+  .day-separator {
+    align-self: center;
+    font-size: 11px;
+    color: var(--text-soft);
+    font-weight: 600;
+    padding: 6px 0 2px;
+    text-transform: capitalize;
+  }
+
+  .thread-empty {
+    font-size: 13px;
+    color: var(--text-soft);
+    text-align: center;
+    padding: 20px 0;
+  }
+
+  .thread-input {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .thread-input input {
+    flex: 1;
+    border: 1px solid var(--line);
+    background: var(--bg);
+    border-radius: 20px;
+    padding: 10px 14px;
+    font-size: 16px;
+    font-family: inherit;
+    color: var(--text);
+    outline: none;
+  }
+
+  .thread-input input:focus { border-color: var(--b-color); }
+
+  .thread-send {
+    border: none;
+    background: var(--b-color);
+    color: #FFFFFF;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    font-size: 17px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .thread-send:disabled { opacity: 0.4; cursor: default; }
+
+  .sent-hint {
+    font-size: 12px;
+    color: var(--b-color);
+    text-align: center;
+    margin-top: 8px;
+    display: none;
+  }
+
+  .sent-hint.visible { display: block; }
 
   .gap-comment {
     margin-top: 20px;
@@ -423,13 +555,18 @@
   <nav class="tabs">
     <button id="tab-today" class="active">Aujourd'hui</button>
     <button id="tab-history">Historique</button>
+    <button id="tab-thread">Discussion</button>
   </nav>
 
   <section id="view-today" class="card">
     <p class="question" id="question-text"></p>
 
     <div id="answer-zone">
-      <div class="value-display" id="slider-value">&nbsp;</div>
+      <div class="value-row">
+        <button class="step-btn" id="step-down" aria-label="Diminuer">&minus;</button>
+        <div class="value-display" id="slider-value">&nbsp;</div>
+        <button class="step-btn" id="step-up" aria-label="Augmenter">+</button>
+      </div>
       <div class="slider-row">
         <input type="range" id="slider" min="1" max="10" value="5.5" step="any">
         <div class="scale-labels">
@@ -465,6 +602,15 @@
         </div>
       </div>
       <div class="gap-comment" id="gap-comment"></div>
+
+      <div class="quick-send">
+        <div class="thread-title">Réagir</div>
+        <div class="thread-input">
+          <input type="text" id="quick-input" placeholder="Écrire à l'autre" maxlength="500">
+          <button class="thread-send" id="quick-send" aria-label="Envoyer">&uarr;</button>
+        </div>
+        <div class="sent-hint" id="sent-hint">Envoyé, à retrouver dans Discussion</div>
+      </div>
     </div>
 
     <div class="error-msg" id="error-msg"></div>
@@ -489,6 +635,15 @@
       <span>Éloignés</span>
     </div>
     <div class="day-detail" id="day-detail"></div>
+  </section>
+
+  <section id="view-thread" class="card hidden">
+    <div class="thread-messages" id="thread-messages"></div>
+    <div class="thread-empty" id="thread-empty">Aucun message pour l'instant.</div>
+    <div class="thread-input">
+      <input type="text" id="msg-input" placeholder="Écrire un message" maxlength="500">
+      <button class="thread-send" id="msg-send" aria-label="Envoyer">&uarr;</button>
+    </div>
   </section>
 
   <footer>
@@ -650,22 +805,36 @@ if (!ME) {
 
 const tabToday = document.getElementById("tab-today");
 const tabHistory = document.getElementById("tab-history");
+const tabThread = document.getElementById("tab-thread");
 const viewToday = document.getElementById("view-today");
 const viewHistory = document.getElementById("view-history");
+const viewThread = document.getElementById("view-thread");
 
-tabToday.addEventListener("click", () => {
-  tabToday.classList.add("active");
-  tabHistory.classList.remove("active");
-  viewToday.classList.remove("hidden");
-  viewHistory.classList.add("hidden");
-});
+const TABS = [
+  [tabToday, viewToday],
+  [tabHistory, viewHistory],
+  [tabThread, viewThread]
+];
+
+function selectTab(activeTab) {
+  TABS.forEach(([tab, view]) => {
+    const on = tab === activeTab;
+    tab.classList.toggle("active", on);
+    view.classList.toggle("hidden", !on);
+  });
+}
+
+tabToday.addEventListener("click", () => selectTab(tabToday));
 
 tabHistory.addEventListener("click", () => {
-  tabHistory.classList.add("active");
-  tabToday.classList.remove("active");
-  viewHistory.classList.remove("hidden");
-  viewToday.classList.add("hidden");
+  selectTab(tabHistory);
   loadHistory();
+});
+
+tabThread.addEventListener("click", () => {
+  selectTab(tabThread);
+  const list = document.getElementById("thread-messages");
+  list.scrollTop = list.scrollHeight;
 });
 
 /* ---------- Vue du jour ---------- */
@@ -715,13 +884,105 @@ function playConfirmAnimation() {
   }, 1300);
 }
 
-// La valeur n'apparaît qu'une fois le curseur relâché
-slider.addEventListener("change", () => {
+// La valeur reste masquée tant que la personne n'a pas interagi
+function showSliderValue() {
   sliderValue.textContent = parseFloat(slider.value).toFixed(1);
-});
+}
+
+slider.addEventListener("change", showSliderValue);
+
+function stepBy(delta) {
+  const current = parseFloat(slider.value);
+  const next = Math.min(10, Math.max(1, Math.round((current + delta) * 10) / 10));
+  slider.value = next;
+  showSliderValue();
+}
+
+document.getElementById("step-down").addEventListener("click", () => stepBy(-0.1));
+document.getElementById("step-up").addEventListener("click", () => stepBy(0.1));
+
+/* ---------- Fil de discussion permanent ---------- */
+
+function setupThread() {
+  // Chemin distinct du jour : le fil est commun à toute la durée
+  const msgsRef = db.ref(`${SECRET_PATH}/messages`);
+
+  const list = document.getElementById("thread-messages");
+  const empty = document.getElementById("thread-empty");
+  const input = document.getElementById("msg-input");
+  const sendBtn = document.getElementById("msg-send");
+  const quickInput = document.getElementById("quick-input");
+  const quickBtn = document.getElementById("quick-send");
+  const sentHint = document.getElementById("sent-hint");
+
+  let lastDayLabel = null;
+
+  function push(text, btn, onDone) {
+    if (!text) return;
+    btn.disabled = true;
+    msgsRef.push({ u: ME, t: text, ts: firebase.database.ServerValue.TIMESTAMP })
+      .then(() => { if (onDone) onDone(); })
+      .catch(err => showError("Message non envoyé : " + err.message))
+      .finally(() => { btn.disabled = false; });
+  }
+
+  // Zone d'envoi de l'onglet Discussion
+  function sendFromThread() {
+    const text = input.value.trim();
+    input.value = "";
+    push(text, sendBtn);
+  }
+
+  sendBtn.addEventListener("click", sendFromThread);
+  input.addEventListener("keydown", e => {
+    if (e.key === "Enter") { e.preventDefault(); sendFromThread(); }
+  });
+
+  // Zone d'envoi rapide sous la comparaison du jour
+  function sendFromQuick() {
+    const text = quickInput.value.trim();
+    quickInput.value = "";
+    push(text, quickBtn, () => {
+      sentHint.classList.add("visible");
+      setTimeout(() => sentHint.classList.remove("visible"), 2500);
+    });
+  }
+
+  quickBtn.addEventListener("click", sendFromQuick);
+  quickInput.addEventListener("keydown", e => {
+    if (e.key === "Enter") { e.preventDefault(); sendFromQuick(); }
+  });
+
+  // Les messages arrivent un par un, y compris ceux déjà enregistrés
+  msgsRef.on("child_added", snap => {
+    const m = snap.val();
+    if (!m || !m.t) return;
+    empty.style.display = "none";
+
+    // Séparateur quand on change de journée
+    const d = m.ts ? new Date(m.ts) : new Date();
+    const label = d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+    if (label !== lastDayLabel) {
+      lastDayLabel = label;
+      const sep = document.createElement("div");
+      sep.className = "day-separator";
+      sep.textContent = label;
+      list.appendChild(sep);
+    }
+
+    const bubble = document.createElement("div");
+    bubble.className = "msg " + (m.u === ME ? "mine" : "theirs");
+    bubble.textContent = m.t;
+    list.appendChild(bubble);
+    list.scrollTop = list.scrollHeight;
+  }, err => {
+    showError("Lecture des messages refusée : " + err.message);
+  });
+}
 
 function init() {
   const dayRef = db.ref(`${SECRET_PATH}/${key}`);
+  setupThread();
 
   submitBtn.addEventListener("click", () => {
     const value = Math.round(parseFloat(slider.value) * 10) / 10;
@@ -753,7 +1014,14 @@ function init() {
       + ". Vérifie que les règles Firebase autorisent le chemin utilisé.");
   });
 
+  let lastSignature = null;
+
   function render(data) {
+    // Les messages ne doivent pas relancer le rendu de la comparaison
+    const signature = `${data[ME]}|${data[OTHER()]}|${data.q}`;
+    if (signature === lastSignature) return;
+    lastSignature = signature;
+
     // Si une question est déjà enregistrée pour ce jour, elle fait foi :
     // les deux personnes voient la même, même si la liste a changé entre-temps.
     if (data.q) {
