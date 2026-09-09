@@ -482,9 +482,10 @@
     <div class="history-grid" id="history-grid"></div>
     <div class="legend">
       <span>Proches</span>
-      <div class="legend-swatch" style="background:#DDEAD8;"></div>
-      <div class="legend-swatch" style="background:#F3E3B5;"></div>
-      <div class="legend-swatch" style="background:#F0C3B5;"></div>
+      <div class="legend-swatch" style="background:#C9E4C5;"></div>
+      <div class="legend-swatch" style="background:#A8D8CE;"></div>
+      <div class="legend-swatch" style="background:#F7C08A;"></div>
+      <div class="legend-swatch" style="background:#F0A090;"></div>
       <span>Éloignés</span>
     </div>
     <div class="day-detail" id="day-detail"></div>
@@ -528,10 +529,12 @@ const QUESTIONS = [
   "As-tu envie de voir du monde aujourd'hui ?",
   "Quel est ton niveau de concentration ?",
   "As-tu envie de parler à quelqu'un aujourd'hui ?",
-  "Quelle est ton humeur générale ?",
   "As-tu envie de bouger ou faire du sport ?",
   "Quel est ton niveau de patience aujourd'hui ?",
   "As-tu bien mangé aujourd'hui ?",
+  "Quel est ton niveau d'optimisme ?",
+  "As-tu envie qu'on se voie bientôt ?",
+  "Quelle est ton humeur générale ?",
   "Quel est ton niveau de calme ?",
   "Es-tu en paix avec toi même ?",
   "Es-tu gentille aujourd'hui ?",
@@ -539,14 +542,13 @@ const QUESTIONS = [
   "Quel est ton niveau de confiance aujourd'hui ?",
   "As-tu eu le temps de souffler aujourd'hui ?",
   "Quel est ton niveau de curiosité ?",
-  "As-tu envie de rester seul aujourd'hui ?",
+  "As-tu envie de rester seule aujourd'hui ?",
   "Quel est ton niveau de satisfaction général ?",
   "As-tu envie de rire aujourd'hui ?",
   "Quel est ton niveau de fatigue mentale ?",
   "As-tu envie de sortir prendre l'air ?",
   "Quel est ton niveau d'organisation aujourd'hui ?",
   "As-tu envie de cuisiner quelque chose aujourd'hui ?",
-  "Quel est ton niveau d'optimisme ?",
   "As-tu envie de faire une pause dans ta journée ?",
   "Quel est ton niveau d'impatience aujourd'hui ?",
   "As-tu envie d'écouter de la musique aujourd'hui ?",
@@ -559,7 +561,16 @@ const QUESTIONS = [
   "Quel est ton niveau de distraction ?",
   "As-tu envie de faire du sport cette semaine ?",
   "Quel est ton niveau d'énergie sociale ?",
-  "As-tu passé un bon moment aujourd'hui ?"
+  "As-tu passé un bon moment aujourd'hui ?",
+  "Comment tu te sens aujourd'hui ?",
+  "Ton réveil a-t-il été difficile ?",
+  "Es-tu contente de ce que tu as fait aujourd'hui ?",
+  "Est-ce que ton esprit divague aujourd'hui ?",
+  "Es-tu heureuse ?",
+  "Es-tu fière de toi ?",
+  "As-tu foi en l'humanité ?",
+  "As-tu envie de sortir ce soir ?",
+  "As-tu regardé ce que je t'ai conseillé sur la note ?"
 ];
 
 function dayOfYear(date) {
@@ -591,22 +602,22 @@ function showError(msg) {
 const GAP_TIERS = [
   {
     max: 1,
-    color: "#DDEAD8",
+    color: "#C9E4C5",
     texts: ["On est proche aujourd'hui 😊", "Même longueur d'onde aujourd'hui 💚"]
   },
   {
     max: 3,
-    color: "#EDE3B8",
+    color: "#A8D8CE",
     texts: ["Pas si loin, on a connu pire !", "Presque d'accord, ça se joue à peu 🙂"]
   },
   {
     max: 5,
-    color: "#F3E3B5",
+    color: "#F7C08A",
     texts: ["Un écart qui se remarque aujourd'hui 😮", "On voit les choses différemment aujourd'hui 😯"]
   },
   {
     max: Infinity,
-    color: "#F0C3B5",
+    color: "#F0A090",
     texts: ["J'espère qu'on fera mieux demain", "Pas la même vision du monde !"]
   }
 ];
@@ -663,7 +674,8 @@ const today = new Date();
 document.getElementById("today-date").textContent =
   today.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
 
-document.getElementById("question-text").textContent = questionForDate(today);
+const todayQuestion = questionForDate(today);
+document.getElementById("question-text").textContent = todayQuestion;
 document.getElementById("label-a").textContent = NAMES.A;
 document.getElementById("label-b").textContent = NAMES.B;
 
@@ -715,7 +727,9 @@ function init() {
     const value = Math.round(parseFloat(slider.value) * 10) / 10;
     submitBtn.disabled = true;
     playConfirmAnimation();
-    dayRef.child(ME).set(value)
+    // On enregistre aussi le texte de la question, pour que l'historique
+    // reste juste même si la liste QUESTIONS change plus tard.
+    dayRef.update({ [ME]: value, q: todayQuestion })
       .catch(err => {
         submitBtn.disabled = false;
         animating = false;
@@ -740,6 +754,12 @@ function init() {
   });
 
   function render(data) {
+    // Si une question est déjà enregistrée pour ce jour, elle fait foi :
+    // les deux personnes voient la même, même si la liste a changé entre-temps.
+    if (data.q) {
+      document.getElementById("question-text").textContent = data.q;
+    }
+
     const mine = data[ME];
     const theirs = data[OTHER()];
 
@@ -787,10 +807,10 @@ let allEntries = null;
 let currentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
 function colorForGap(gap) {
-  if (gap <= 1) return "#DDEAD8";
-  if (gap <= 3) return "#EDE3B8";
-  if (gap <= 5) return "#F3E3B5";
-  return "#F0C3B5";
+  if (gap <= 1) return "#C9E4C5";
+  if (gap <= 3) return "#A8D8CE";
+  if (gap <= 5) return "#F7C08A";
+  return "#F0A090";
 }
 
 function loadHistory() {
@@ -873,7 +893,9 @@ function showDayDetail(d, entry) {
   const detail = document.getElementById("day-detail");
   const [y, m, dd] = d.split("-").map(Number);
   const dateObj = new Date(y, m - 1, dd);
-  const q = questionForDate(dateObj);
+  // Question réellement posée ce jour-là si elle a été enregistrée,
+  // sinon on la recalcule (jours antérieurs à cette fonctionnalité).
+  const q = entry.q || questionForDate(dateObj);
   const a = Number(entry.A);
   const b = Number(entry.B);
   const c = gapComment(Math.abs(a - b), dateObj);
