@@ -219,6 +219,25 @@
     transition: width 600ms cubic-bezier(0.2, 0.8, 0.3, 1);
   }
 
+  .gap-comment {
+    margin-top: 20px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    font-size: 14px;
+    line-height: 1.4;
+    text-align: center;
+    font-weight: 500;
+  }
+
+  footer {
+    margin-top: 28px;
+    text-align: center;
+    font-size: 11px;
+    color: var(--text-soft);
+  }
+
+  footer p { margin: 0; }
+
   .error-msg {
     margin-top: 14px;
     padding: 10px 12px;
@@ -445,6 +464,7 @@
           <span class="compare-value" id="val-b"></span>
         </div>
       </div>
+      <div class="gap-comment" id="gap-comment"></div>
     </div>
 
     <div class="error-msg" id="error-msg"></div>
@@ -469,6 +489,10 @@
     </div>
     <div class="day-detail" id="day-detail"></div>
   </section>
+
+  <footer>
+    <p>&copy; 2026 Mathis Madar. All rights reserved.</p>
+  </footer>
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -560,6 +584,37 @@ function showError(msg) {
   const el = document.getElementById("error-msg");
   el.textContent = msg;
   el.classList.add("visible");
+}
+
+// Paliers identiques à ceux de la légende de l'historique.
+// Deux phrases par palier, alternées selon la parité du jour.
+const GAP_TIERS = [
+  {
+    max: 1,
+    color: "#DDEAD8",
+    texts: ["On est proche aujourd'hui 😊", "Même longueur d'onde aujourd'hui 💚"]
+  },
+  {
+    max: 3,
+    color: "#EDE3B8",
+    texts: ["Pas si loin, on a connu pire !", "Presque d'accord, ça se joue à peu 🙂"]
+  },
+  {
+    max: 5,
+    color: "#F3E3B5",
+    texts: ["Un écart qui se remarque aujourd'hui 😮", "On voit les choses différemment aujourd'hui 😯"]
+  },
+  {
+    max: Infinity,
+    color: "#F0C3B5",
+    texts: ["J'espère qu'on fera mieux demain", "Pas la même vision du monde !"]
+  }
+];
+
+function gapComment(gap, date) {
+  const tier = GAP_TIERS.find(t => gap <= t.max);
+  const variant = dayOfYear(date) % tier.texts.length;
+  return { text: tier.texts[variant], color: tier.color };
 }
 
 /* ---------- Identité (A ou B), stockée sur l'appareil ---------- */
@@ -716,6 +771,11 @@ function init() {
       document.getElementById("bar-a").style.width = `${(valA - 1) * (100 / 9)}%`;
       document.getElementById("bar-b").style.width = `${(valB - 1) * (100 / 9)}%`;
     });
+
+    const c = gapComment(Math.abs(valA - valB), today);
+    const commentEl = document.getElementById("gap-comment");
+    commentEl.textContent = c.text;
+    commentEl.style.background = c.color;
   }
 }
 
@@ -814,9 +874,13 @@ function showDayDetail(d, entry) {
   const [y, m, dd] = d.split("-").map(Number);
   const dateObj = new Date(y, m - 1, dd);
   const q = questionForDate(dateObj);
+  const a = Number(entry.A);
+  const b = Number(entry.B);
+  const c = gapComment(Math.abs(a - b), dateObj);
   detail.innerHTML = `
     <div class="q">${dateObj.toLocaleDateString("fr-FR", { day: "numeric", month: "long" })} — ${q}</div>
-    <div>${NAMES.A} : ${Number(entry.A).toFixed(1)} &nbsp;·&nbsp; ${NAMES.B} : ${Number(entry.B).toFixed(1)}</div>
+    <div>${NAMES.A} : ${a.toFixed(1)} &nbsp;·&nbsp; ${NAMES.B} : ${b.toFixed(1)}</div>
+    <div style="margin-top:8px; color: var(--text-soft);">${c.text}</div>
   `;
   detail.classList.add("visible");
 }
