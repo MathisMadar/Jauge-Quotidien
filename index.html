@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Jauge du jour</title>
-<link rel="manifest" href="data:application/manifest+json,{%22name%22:%22Jauge%20du%20jour%22,%22short_name%22:%22Jauge%22,%22display%22:%22standalone%22,%22start_url%22:%22.%22,%22background_color%22:%22%23F5F1E8%22,%22theme_color%22:%22%23F5F1E8%22}">
+<link rel="manifest" href="data:application/manifest+json,{%22name%22:%22Jauge%20du%20jour%22,%22short_name%22:%22Jauge%22,%22display%22:%22standalone%22,%22start_url%22:%22.%22,%22background_color%22:%22%23FFF3D6%22,%22theme_color%22:%22%23FFF3D6%22}">
 <style>
   :root {
     --bg: #FFF3D6;
@@ -32,21 +32,11 @@
     padding: 24px 18px 40px;
   }
 
-  .app {
-    width: 100%;
-    max-width: 420px;
-  }
+  .app { width: 100%; max-width: 420px; }
 
-  header {
-    text-align: center;
-    margin-bottom: 24px;
-  }
+  header { text-align: center; margin-bottom: 24px; }
 
-  header h1 {
-    font-size: 20px;
-    font-weight: 600;
-    margin: 0 0 4px;
-  }
+  header h1 { font-size: 20px; font-weight: 600; margin: 0 0 4px; }
 
   header .date {
     font-size: 13px;
@@ -95,11 +85,7 @@
     font-weight: 500;
   }
 
-  .slider-row {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
+  .slider-row { display: flex; flex-direction: column; gap: 10px; }
 
   input[type="range"] {
     -webkit-appearance: none;
@@ -113,6 +99,7 @@
 
   input[type="range"]::-webkit-slider-thumb {
     -webkit-appearance: none;
+    appearance: none;
     width: 26px;
     height: 26px;
     border-radius: 50%;
@@ -120,6 +107,15 @@
     cursor: pointer;
     border: 3px solid var(--card);
     box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+  }
+
+  input[type="range"]::-moz-range-thumb {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--text);
+    cursor: pointer;
+    border: 3px solid var(--card);
   }
 
   .scale-labels {
@@ -134,6 +130,7 @@
     font-size: 32px;
     font-weight: 600;
     margin: 4px 0 20px;
+    min-height: 40px;
   }
 
   button.primary {
@@ -148,10 +145,7 @@
     cursor: pointer;
   }
 
-  button.primary:disabled {
-    opacity: 0.4;
-    cursor: default;
-  }
+  button.primary:disabled { opacity: 0.4; cursor: default; }
 
   .waiting {
     text-align: center;
@@ -160,24 +154,24 @@
     padding: 20px 0 4px;
   }
 
-  .compare {
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-    margin-top: 4px;
-  }
-
-  .compare-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-
-  .compare-label {
-    width: 56px;
+  .error-msg {
+    margin-top: 14px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: #FFE0DA;
+    color: #8C2F1D;
     font-size: 13px;
-    font-weight: 600;
+    line-height: 1.4;
+    display: none;
   }
+
+  .error-msg.visible { display: block; }
+
+  .compare { display: flex; flex-direction: column; gap: 14px; margin-top: 4px; }
+
+  .compare-row { display: flex; align-items: center; gap: 12px; }
+
+  .compare-label { width: 62px; font-size: 13px; font-weight: 600; }
 
   .compare-label.a { color: var(--a-color); }
   .compare-label.b { color: var(--b-color); }
@@ -190,22 +184,58 @@
     overflow: hidden;
   }
 
-  .bar-fill {
-    height: 100%;
-    border-radius: 5px;
-  }
+  .bar-fill { height: 100%; border-radius: 5px; }
 
   .bar-fill.a { background: var(--a-color); }
   .bar-fill.b { background: var(--b-color); }
 
   .compare-value {
-    width: 22px;
+    width: 30px;
     text-align: right;
     font-size: 14px;
     font-weight: 600;
   }
 
   /* Historique */
+  .calendar-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+
+  .calendar-nav button {
+    border: none;
+    background: var(--line);
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text);
+    cursor: pointer;
+  }
+
+  .calendar-nav .month-label {
+    font-size: 15px;
+    font-weight: 600;
+    text-transform: capitalize;
+  }
+
+  .weekday-row {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+    margin-bottom: 6px;
+  }
+
+  .weekday-row span {
+    text-align: center;
+    font-size: 11px;
+    color: var(--text-soft);
+    font-weight: 600;
+  }
+
   .history-grid {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
@@ -214,20 +244,20 @@
 
   .day-cell {
     aspect-ratio: 1;
-    border-radius: 6px;
-    background: var(--line);
-    position: relative;
+    border-radius: 8px;
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
+
+  .day-cell.in-month { background: var(--line); }
 
   .day-cell.filled { cursor: pointer; }
 
-  .day-cell .num {
-    position: absolute;
-    top: 3px;
-    left: 5px;
-    font-size: 9px;
-    color: rgba(0,0,0,0.35);
-  }
+  .day-cell.today { box-shadow: inset 0 0 0 2px var(--text); }
+
+  .day-cell .num { font-size: 12px; color: rgba(0,0,0,0.45); }
 
   .legend {
     display: flex;
@@ -239,11 +269,7 @@
     color: var(--text-soft);
   }
 
-  .legend-swatch {
-    width: 12px;
-    height: 12px;
-    border-radius: 3px;
-  }
+  .legend-swatch { width: 12px; height: 12px; border-radius: 3px; }
 
   .day-detail {
     margin-top: 16px;
@@ -256,10 +282,7 @@
 
   .day-detail.visible { display: block; }
 
-  .day-detail .q {
-    color: var(--text-soft);
-    margin-bottom: 8px;
-  }
+  .day-detail .q { color: var(--text-soft); margin-bottom: 8px; }
 
   .setup-overlay {
     position: fixed;
@@ -272,6 +295,7 @@
     gap: 16px;
     padding: 24px;
     text-align: center;
+    z-index: 10;
   }
 
   .setup-overlay p {
@@ -280,10 +304,7 @@
     max-width: 280px;
   }
 
-  .setup-choices {
-    display: flex;
-    gap: 12px;
-  }
+  .setup-choices { display: flex; gap: 12px; }
 
   .setup-choices button {
     border: 2px solid var(--line);
@@ -324,9 +345,9 @@
     <p class="question" id="question-text"></p>
 
     <div id="answer-zone">
-      <div class="value-display" id="slider-value">5</div>
+      <div class="value-display" id="slider-value">&nbsp;</div>
       <div class="slider-row">
-        <input type="range" id="slider" min="1" max="10" value="5" step="1">
+        <input type="range" id="slider" min="1" max="10" value="5.5" step="any">
         <div class="scale-labels">
           <span>1</span>
           <span>10</span>
@@ -342,20 +363,30 @@
     <div id="compare-zone" class="hidden">
       <div class="compare">
         <div class="compare-row">
-          <span class="compare-label a">A</span>
+          <span class="compare-label a" id="label-a"></span>
           <div class="bar-track"><div class="bar-fill a" id="bar-a"></div></div>
           <span class="compare-value" id="val-a"></span>
         </div>
         <div class="compare-row">
-          <span class="compare-label b">B</span>
+          <span class="compare-label b" id="label-b"></span>
           <div class="bar-track"><div class="bar-fill b" id="bar-b"></div></div>
           <span class="compare-value" id="val-b"></span>
         </div>
       </div>
     </div>
+
+    <div class="error-msg" id="error-msg"></div>
   </section>
 
   <section id="view-history" class="card hidden">
+    <div class="calendar-nav">
+      <button id="prev-month">&lsaquo;</button>
+      <span class="month-label" id="month-label"></span>
+      <button id="next-month">&rsaquo;</button>
+    </div>
+    <div class="weekday-row">
+      <span>L</span><span>M</span><span>M</span><span>J</span><span>V</span><span>S</span><span>D</span>
+    </div>
     <div class="history-grid" id="history-grid"></div>
     <div class="legend">
       <span>Proches</span>
@@ -385,6 +416,9 @@ const firebaseConfig = {
 
 const SECRET_PATH = "Jauge-09-Quotidien-xyz";
 
+// Noms affichés pour chaque rôle
+const NAMES = { A: "Clara", B: "Mathis" };
+
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
@@ -398,7 +432,7 @@ const QUESTIONS = [
   "As-tu envie de voir du monde aujourd'hui ?",
   "Quel est ton niveau de concentration ?",
   "As-tu envie de parler à quelqu'un aujourd'hui ?",
-  "Quel est ton humeur générale ?",
+  "Quelle est ton humeur générale ?",
   "As-tu envie de bouger ou faire du sport ?",
   "Quel est ton niveau de patience aujourd'hui ?",
   "As-tu bien mangé aujourd'hui ?",
@@ -429,7 +463,7 @@ const QUESTIONS = [
   "Quel est ton niveau de distraction ?",
   "As-tu envie de faire du sport cette semaine ?",
   "Quel est ton niveau d'énergie sociale ?",
-  "As-tu passé un bon moment aujourd'hui ?",
+  "As-tu passé un bon moment aujourd'hui ?"
 ];
 
 function dayOfYear(date) {
@@ -450,6 +484,12 @@ function questionForDate(date) {
   return QUESTIONS[idx];
 }
 
+function showError(msg) {
+  const el = document.getElementById("error-msg");
+  el.textContent = msg;
+  el.classList.add("visible");
+}
+
 /* ---------- Identité (A ou B), stockée sur l'appareil ---------- */
 
 let ME = localStorage.getItem("jauge_user");
@@ -466,7 +506,7 @@ if (!ME) {
       init();
     });
   });
-} 
+}
 
 /* ---------- Onglets ---------- */
 
@@ -496,8 +536,9 @@ const today = new Date();
 document.getElementById("today-date").textContent =
   today.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
 
-const question = questionForDate(today);
-document.getElementById("question-text").textContent = question;
+document.getElementById("question-text").textContent = questionForDate(today);
+document.getElementById("label-a").textContent = NAMES.A;
+document.getElementById("label-b").textContent = NAMES.B;
 
 const key = dateKey(today);
 const slider = document.getElementById("slider");
@@ -507,15 +548,22 @@ const answerZone = document.getElementById("answer-zone");
 const waitingZone = document.getElementById("waiting-zone");
 const compareZone = document.getElementById("compare-zone");
 
-slider.addEventListener("input", () => {
-  sliderValue.textContent = slider.value;
+// La valeur n'apparaît qu'une fois le curseur relâché
+slider.addEventListener("change", () => {
+  sliderValue.textContent = parseFloat(slider.value).toFixed(1);
 });
 
 function init() {
   const dayRef = db.ref(`${SECRET_PATH}/${key}`);
 
   submitBtn.addEventListener("click", () => {
-    dayRef.child(ME).set(Number(slider.value));
+    const value = Math.round(parseFloat(slider.value) * 10) / 10;
+    submitBtn.disabled = true;
+    dayRef.child(ME).set(value)
+      .catch(err => {
+        submitBtn.disabled = false;
+        showError("Échec de l'enregistrement : " + err.message);
+      });
   });
 
   dayRef.on("value", snap => {
@@ -523,14 +571,15 @@ function init() {
     const mine = data[ME];
     const theirs = data[OTHER()];
 
-    if (mine === undefined) {
+    if (mine === undefined || mine === null) {
+      submitBtn.disabled = false;
       answerZone.classList.remove("hidden");
       waitingZone.classList.add("hidden");
       compareZone.classList.add("hidden");
       return;
     }
 
-    if (theirs === undefined) {
+    if (theirs === undefined || theirs === null) {
       answerZone.classList.add("hidden");
       waitingZone.classList.remove("hidden");
       compareZone.classList.add("hidden");
@@ -541,23 +590,26 @@ function init() {
     waitingZone.classList.add("hidden");
     compareZone.classList.remove("hidden");
 
-    const valA = data["A"];
-    const valB = data["B"];
-    document.getElementById("val-a").textContent = valA;
-    document.getElementById("val-b").textContent = valB;
-    document.getElementById("bar-a").style.width = `${valA * 10}%`;
-    document.getElementById("bar-b").style.width = `${valB * 10}%`;
+    const valA = Number(data["A"]);
+    const valB = Number(data["B"]);
+    document.getElementById("val-a").textContent = valA.toFixed(1);
+    document.getElementById("val-b").textContent = valB.toFixed(1);
+    document.getElementById("bar-a").style.width = `${(valA - 1) * (100 / 9)}%`;
+    document.getElementById("bar-b").style.width = `${(valB - 1) * (100 / 9)}%`;
+  }, err => {
+    showError("Lecture refusée par la base : " + err.message
+      + ". Vérifie que les règles Firebase autorisent le chemin utilisé.");
   });
 }
 
 if (ME) init();
 
-/* ---------- Historique ---------- */
+/* ---------- Historique (calendrier mensuel) ---------- */
 
-let historyLoaded = false;
+let allEntries = null;
+let currentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
 function colorForGap(gap) {
-  // gap va de 0 à 9. Proche = vert doux, éloigné = corail doux.
   if (gap <= 1) return "#DDEAD8";
   if (gap <= 3) return "#EDE3B8";
   if (gap <= 5) return "#F3E3B5";
@@ -565,45 +617,89 @@ function colorForGap(gap) {
 }
 
 function loadHistory() {
-  if (historyLoaded) return;
-  historyLoaded = true;
+  if (allEntries !== null) {
+    renderCalendar();
+    return;
+  }
 
-  db.ref(SECRET_PATH).once("value", snap => {
-    const all = snap.val() || {};
-    const days = Object.keys(all).sort(); // ordre chronologique
-
-    const grid = document.getElementById("history-grid");
-    grid.innerHTML = "";
-
-    days.forEach(d => {
-      const entry = all[d];
-      const cell = document.createElement("div");
-      cell.className = "day-cell";
-
-      const num = document.createElement("div");
-      num.className = "num";
-      num.textContent = d.slice(-2);
-      cell.appendChild(num);
-
-      if (entry.A !== undefined && entry.B !== undefined) {
-        const gap = Math.abs(entry.A - entry.B);
-        cell.style.background = colorForGap(gap);
-        cell.classList.add("filled");
-        cell.addEventListener("click", () => showDayDetail(d, entry));
-      }
-
-      grid.appendChild(cell);
+  db.ref(SECRET_PATH).once("value")
+    .then(snap => {
+      allEntries = snap.val() || {};
+      renderCalendar();
+    })
+    .catch(err => {
+      showError("Lecture de l'historique refusée : " + err.message);
     });
-  });
 }
+
+function renderCalendar() {
+  document.getElementById("month-label").textContent =
+    currentMonth.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+
+  const grid = document.getElementById("history-grid");
+  grid.innerHTML = "";
+  document.getElementById("day-detail").classList.remove("visible");
+
+  const year = currentMonth.getFullYear();
+  const month = currentMonth.getMonth();
+  const firstOfMonth = new Date(year, month, 1);
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  // Semaine commençant le lundi
+  const startOffset = (firstOfMonth.getDay() + 6) % 7;
+
+  for (let i = 0; i < startOffset; i++) {
+    const empty = document.createElement("div");
+    empty.className = "day-cell";
+    grid.appendChild(empty);
+  }
+
+  const todayKey = dateKey(today);
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const cellDate = new Date(year, month, day);
+    const d = dateKey(cellDate);
+    const entry = allEntries[d];
+
+    const cell = document.createElement("div");
+    cell.className = "day-cell in-month";
+    if (d === todayKey) cell.classList.add("today");
+
+    const num = document.createElement("span");
+    num.className = "num";
+    num.textContent = day;
+    cell.appendChild(num);
+
+    if (entry && entry.A !== undefined && entry.A !== null
+              && entry.B !== undefined && entry.B !== null) {
+      const gap = Math.abs(Number(entry.A) - Number(entry.B));
+      cell.style.background = colorForGap(gap);
+      cell.classList.add("filled");
+      cell.addEventListener("click", () => showDayDetail(d, entry));
+    }
+
+    grid.appendChild(cell);
+  }
+}
+
+document.getElementById("prev-month").addEventListener("click", () => {
+  currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1);
+  renderCalendar();
+});
+
+document.getElementById("next-month").addEventListener("click", () => {
+  currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1);
+  renderCalendar();
+});
 
 function showDayDetail(d, entry) {
   const detail = document.getElementById("day-detail");
-  const dateObj = new Date(d);
+  const [y, m, dd] = d.split("-").map(Number);
+  const dateObj = new Date(y, m - 1, dd);
   const q = questionForDate(dateObj);
   detail.innerHTML = `
     <div class="q">${dateObj.toLocaleDateString("fr-FR", { day: "numeric", month: "long" })} — ${q}</div>
-    <div>A : ${entry.A} &nbsp;·&nbsp; B : ${entry.B}</div>
+    <div>${NAMES.A} : ${Number(entry.A).toFixed(1)} &nbsp;·&nbsp; ${NAMES.B} : ${Number(entry.B).toFixed(1)}</div>
   `;
   detail.classList.add("visible");
 }
