@@ -263,7 +263,7 @@
     flex-direction: column;
     gap: 8px;
     min-height: 200px;
-    max-height: 55vh;
+    max-height: 65vh;
     overflow-y: auto;
     margin-bottom: 14px;
   }
@@ -290,6 +290,22 @@
     color: var(--text);
     border-bottom-left-radius: 5px;
   }
+
+  .msg { cursor: pointer; }
+
+  .msg-time {
+    font-size: 11px;
+    color: var(--text-soft);
+    padding: 0 6px;
+    margin-top: -4px;
+    display: none;
+  }
+
+  .msg-time.visible { display: block; }
+
+  .msg-time.mine { align-self: flex-end; }
+
+  .msg-time.theirs { align-self: flex-start; }
 
   .day-separator {
     align-self: center;
@@ -970,10 +986,25 @@ function setupThread() {
       list.appendChild(sep);
     }
 
+    const side = m.u === ME ? "mine" : "theirs";
+
     const bubble = document.createElement("div");
-    bubble.className = "msg " + (m.u === ME ? "mine" : "theirs");
+    bubble.className = "msg " + side;
     bubble.textContent = m.t;
+
+    const time = document.createElement("div");
+    time.className = "msg-time " + side;
+    time.textContent = m.ts
+      ? d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })
+      : "";
+
+    // Un appui sur la bulle affiche ou masque l'heure d'envoi
+    bubble.addEventListener("click", () => {
+      time.classList.toggle("visible");
+    });
+
     list.appendChild(bubble);
+    list.appendChild(time);
     list.scrollTop = list.scrollHeight;
   }, err => {
     showError("Lecture des messages refusée : " + err.message);
