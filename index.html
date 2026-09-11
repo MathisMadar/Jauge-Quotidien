@@ -317,6 +317,24 @@
 
   .msg-reactions.theirs { align-self: flex-start; margin-left: 6px; }
 
+  .notif-row {
+    margin-top: 14px;
+    text-align: center;
+  }
+
+  .notif-btn {
+    border: 1px solid var(--line);
+    background: var(--bg);
+    color: var(--text-soft);
+    font-size: 12px;
+    font-family: inherit;
+    padding: 7px 14px;
+    border-radius: 16px;
+    cursor: pointer;
+  }
+
+  .notif-btn:disabled { opacity: 0.5; cursor: default; }
+
   .emoji-picker {
     position: fixed;
     left: 50%;
@@ -732,6 +750,9 @@
       <textarea id="msg-input" rows="1" placeholder="Écrire un message" maxlength="500"></textarea>
       <button class="thread-send" id="msg-send" aria-label="Envoyer">&uarr;</button>
     </div>
+    <div class="notif-row" id="notif-row">
+      <button class="notif-btn" id="notif-btn">Activer les notifications</button>
+    </div>
   </section>
 
   <footer>
@@ -741,6 +762,7 @@
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
 <script>
 /* ---------- Configuration ---------- */
 
@@ -991,6 +1013,74 @@ document.getElementById("step-up").addEventListener("click", () => stepBy(0.1));
 
 /* ---------- Fil de discussion permanent ---------- */
 
+/* ---------- Notifications ---------- */
+
+const VAPID_KEY = "BP9tq1QxfNWqRwzWs5JFLm2N21yZRkuGIoWr_ikkYN7d8mVlW7W1-TOmsHAW7e90siia5u5xe_1gcwKR004Cqf8";
+
+function setupNotifications() {
+  const btn = document.getElementById("notif-btn");
+  const row = document.getElementById("notif-row");
+
+  const supported = "Notification" in window
+    && "serviceWorker" in navigator
+    && firebase.messaging.isSupported();
+
+  if (!supported) {
+    row.textContent = "Notifications non disponibles sur cet appareil.";
+    row.style.fontSize = "12px";
+    row.style.color = "var(--text-soft)";
+    return;
+  }
+
+  // Déjà autorisées : on rafraîchit le jeton en silence
+  if (Notification.permission === "granted") {
+    row.style.display = "none";
+    registerToken();
+    return;
+  }
+
+  if (Notification.permission === "denied") {
+    row.textContent = "Notifications refusées. À réactiver dans les réglages du téléphone.";
+    row.style.fontSize = "12px";
+    row.style.color = "var(--text-soft)";
+    return;
+  }
+
+  // La demande doit partir d'un geste de l'utilisateur
+  btn.addEventListener("click", () => {
+    btn.disabled = true;
+    Notification.requestPermission().then(result => {
+      if (result === "granted") {
+        row.style.display = "none";
+        registerToken();
+      } else {
+        btn.disabled = false;
+        btn.textContent = "Notifications refusées";
+      }
+    });
+  });
+}
+
+function registerToken() {
+  // Le service worker est à la racine du site, donc en chemin relatif
+  navigator.serviceWorker.register("firebase-messaging-sw.js")
+    .then(registration => {
+      const messaging = firebase.messaging();
+      return messaging.getToken({
+        vapidKey: VAPID_KEY,
+        serviceWorkerRegistration: registration
+      });
+    })
+    .then(token => {
+      if (!token) return;
+      // Un jeton par personne : le dernier appareil enregistré reçoit
+      return db.ref(`${SECRET_PATH}/tokens/${ME}`).set(token);
+    })
+    .catch(err => {
+      console.error("Notifications :", err);
+    });
+}
+
 function setupThread() {
   // Chemin distinct du jour : le fil est commun à toute la durée
   const msgsRef = db.ref(`${SECRET_PATH}/messages`);
@@ -1184,6 +1274,7 @@ function setupThread() {
 function init() {
   const dayRef = db.ref(`${SECRET_PATH}/${key}`);
   setupThread();
+  setupNotifications();
 
   submitBtn.addEventListener("click", () => {
     const value = Math.round(parseFloat(slider.value) * 10) / 10;
