@@ -21,6 +21,11 @@
 
   * { box-sizing: border-box; }
 
+  /* Empêche le zoom au double appui (gênant sur les boutons + et -) */
+  body, button, input, textarea, .msg, .day-cell {
+    touch-action: manipulation;
+  }
+
   body {
     margin: 0;
     background: var(--bg);
@@ -291,7 +296,61 @@
     border-bottom-left-radius: 5px;
   }
 
-  .msg { cursor: pointer; }
+  .msg { cursor: pointer; -webkit-user-select: none; user-select: none; }
+
+  .msg-reactions {
+    display: none;
+    gap: 3px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 1px 6px;
+    font-size: 13px;
+    line-height: 1.5;
+    margin-top: -6px;
+    width: fit-content;
+  }
+
+  .msg-reactions.visible { display: flex; }
+
+  .msg-reactions.mine { align-self: flex-end; margin-right: 6px; }
+
+  .msg-reactions.theirs { align-self: flex-start; margin-left: 6px; }
+
+  .emoji-picker {
+    position: fixed;
+    left: 50%;
+    bottom: 90px;
+    transform: translateX(-50%) scale(0.9);
+    background: var(--card);
+    border-radius: 24px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.18);
+    padding: 8px 12px;
+    display: flex;
+    gap: 6px;
+    z-index: 50;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 160ms ease, transform 160ms ease;
+  }
+
+  .emoji-picker.visible {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateX(-50%) scale(1);
+  }
+
+  .emoji-picker button {
+    border: none;
+    background: transparent;
+    font-size: 26px;
+    line-height: 1;
+    padding: 4px 5px;
+    border-radius: 50%;
+    cursor: pointer;
+  }
+
+  .emoji-picker button:active { background: var(--line); }
 
   .msg-time {
     font-size: 11px;
@@ -326,10 +385,10 @@
   .thread-input {
     display: flex;
     gap: 8px;
-    align-items: center;
+    align-items: flex-end;
   }
 
-  .thread-input input {
+  .thread-input textarea {
     flex: 1;
     border: 1px solid var(--line);
     background: var(--bg);
@@ -337,11 +396,15 @@
     padding: 10px 14px;
     font-size: 16px;
     font-family: inherit;
+    line-height: 1.35;
     color: var(--text);
     outline: none;
+    resize: none;
+    overflow-y: auto;
+    max-height: 120px;
   }
 
-  .thread-input input:focus { border-color: var(--b-color); }
+  .thread-input textarea:focus { border-color: var(--b-color); }
 
   .thread-send {
     border: none;
@@ -562,6 +625,15 @@
   </div>
 </div>
 
+<div id="emoji-picker" class="emoji-picker">
+  <button data-emoji="❤️">❤️</button>
+  <button data-emoji="😂">😂</button>
+  <button data-emoji="😮">😮</button>
+  <button data-emoji="🥺">🥺</button>
+  <button data-emoji="👍">👍</button>
+  <button data-emoji="🔥">🔥</button>
+</div>
+
 <div class="app">
   <header>
     <h1>Notre question du jour</h1>
@@ -622,7 +694,7 @@
       <div class="quick-send">
         <div class="thread-title">Réagir</div>
         <div class="thread-input">
-          <input type="text" id="quick-input" placeholder="Écrire à l'autre" maxlength="500">
+          <textarea id="quick-input" rows="1" placeholder="Écrire à l'autre" maxlength="500"></textarea>
           <button class="thread-send" id="quick-send" aria-label="Envoyer">&uarr;</button>
         </div>
         <div class="sent-hint" id="sent-hint">Envoyé, à retrouver dans Discussion</div>
@@ -657,7 +729,7 @@
     <div class="thread-messages" id="thread-messages"></div>
     <div class="thread-empty" id="thread-empty">Aucun message pour l'instant.</div>
     <div class="thread-input">
-      <input type="text" id="msg-input" placeholder="Écrire un message" maxlength="500">
+      <textarea id="msg-input" rows="1" placeholder="Écrire un message" maxlength="500"></textarea>
       <button class="thread-send" id="msg-send" aria-label="Envoyer">&uarr;</button>
     </div>
   </section>
@@ -930,8 +1002,17 @@ function setupThread() {
   const quickInput = document.getElementById("quick-input");
   const quickBtn = document.getElementById("quick-send");
   const sentHint = document.getElementById("sent-hint");
+  const picker = document.getElementById("emoji-picker");
 
   let lastDayLabel = null;
+  const nodes = {}; // clé du message -> éléments à mettre à jour
+
+  /* --- Envoi --- */
+
+  function autoGrow(el) {
+    el.style.height = "auto";
+    el.style.height = Math.min(el.scrollHeight, 120) + "px";
+  }
 
   function push(text, btn, onDone) {
     if (!text) return;
@@ -942,40 +1023,119 @@ function setupThread() {
       .finally(() => { btn.disabled = false; });
   }
 
-  // Zone d'envoi de l'onglet Discussion
-  function sendFromThread() {
-    const text = input.value.trim();
-    input.value = "";
-    push(text, sendBtn);
-  }
-
-  sendBtn.addEventListener("click", sendFromThread);
-  input.addEventListener("keydown", e => {
-    if (e.key === "Enter") { e.preventDefault(); sendFromThread(); }
-  });
-
-  // Zone d'envoi rapide sous la comparaison du jour
-  function sendFromQuick() {
-    const text = quickInput.value.trim();
-    quickInput.value = "";
-    push(text, quickBtn, () => {
-      sentHint.classList.add("visible");
-      setTimeout(() => sentHint.classList.remove("visible"), 2500);
+  function wireInput(field, btn, onDone) {
+    function send() {
+      const text = field.value.trim();
+      field.value = "";
+      autoGrow(field);
+      push(text, btn, onDone);
+    }
+    btn.addEventListener("click", send);
+    field.addEventListener("input", () => autoGrow(field));
+    // Entrée envoie, Maj+Entrée passe à la ligne
+    field.addEventListener("keydown", e => {
+      if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
     });
   }
 
-  quickBtn.addEventListener("click", sendFromQuick);
-  quickInput.addEventListener("keydown", e => {
-    if (e.key === "Enter") { e.preventDefault(); sendFromQuick(); }
+  wireInput(input, sendBtn);
+  wireInput(quickInput, quickBtn, () => {
+    sentHint.classList.add("visible");
+    setTimeout(() => sentHint.classList.remove("visible"), 2500);
   });
 
-  // Les messages arrivent un par un, y compris ceux déjà enregistrés
+  /* --- Réactions --- */
+
+  function setReaction(msgKey, emoji) {
+    const ref = msgsRef.child(msgKey).child("r").child(ME);
+    // Réappuyer sur la même réaction la retire
+    ref.once("value").then(snap => {
+      ref.set(snap.val() === emoji ? null : emoji);
+    }).catch(err => showError("Réaction non enregistrée : " + err.message));
+  }
+
+  function renderReactions(msgKey, reactions) {
+    const el = nodes[msgKey];
+    if (!el) return;
+    const values = Object.values(reactions || {});
+    el.reactions.textContent = values.join(" ");
+    el.reactions.classList.toggle("visible", values.length > 0);
+  }
+
+  /* --- Sélecteur d'emoji --- */
+
+  let pickerTarget = null;
+
+  function openPicker(msgKey) {
+    pickerTarget = msgKey;
+    picker.classList.add("visible");
+  }
+
+  function closePicker() {
+    pickerTarget = null;
+    picker.classList.remove("visible");
+  }
+
+  picker.querySelectorAll("button[data-emoji]").forEach(btn => {
+    btn.addEventListener("click", e => {
+      e.stopPropagation();
+      if (pickerTarget) setReaction(pickerTarget, btn.dataset.emoji);
+      closePicker();
+    });
+  });
+
+  document.addEventListener("click", () => closePicker());
+
+  /* --- Gestes sur une bulle --- */
+
+  function wireBubble(bubble, msgKey, timeEl) {
+    let tapTimer = null;
+    let pressTimer = null;
+    let longPressed = false;
+
+    bubble.addEventListener("click", e => {
+      e.stopPropagation();
+      if (longPressed) { longPressed = false; return; }
+      if (tapTimer) {
+        // Deuxième appui rapproché : cœur
+        clearTimeout(tapTimer);
+        tapTimer = null;
+        setReaction(msgKey, "❤️");
+        return;
+      }
+      // Premier appui : on attend de voir s'il y en a un second
+      tapTimer = setTimeout(() => {
+        tapTimer = null;
+        timeEl.classList.toggle("visible");
+      }, 260);
+    });
+
+    function startPress() {
+      longPressed = false;
+      pressTimer = setTimeout(() => {
+        longPressed = true;
+        if (tapTimer) { clearTimeout(tapTimer); tapTimer = null; }
+        openPicker(msgKey);
+      }, 500);
+    }
+    function cancelPress() { clearTimeout(pressTimer); }
+
+    bubble.addEventListener("touchstart", startPress, { passive: true });
+    bubble.addEventListener("touchend", cancelPress);
+    bubble.addEventListener("touchmove", cancelPress, { passive: true });
+    bubble.addEventListener("mousedown", startPress);
+    bubble.addEventListener("mouseup", cancelPress);
+    bubble.addEventListener("mouseleave", cancelPress);
+    bubble.addEventListener("contextmenu", e => e.preventDefault());
+  }
+
+  /* --- Arrivée des messages --- */
+
   msgsRef.on("child_added", snap => {
     const m = snap.val();
     if (!m || !m.t) return;
     empty.style.display = "none";
 
-    // Séparateur quand on change de journée
     const d = m.ts ? new Date(m.ts) : new Date();
     const label = d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
     if (label !== lastDayLabel) {
@@ -992,22 +1152,32 @@ function setupThread() {
     bubble.className = "msg " + side;
     bubble.textContent = m.t;
 
+    const reactions = document.createElement("div");
+    reactions.className = "msg-reactions " + side;
+
     const time = document.createElement("div");
     time.className = "msg-time " + side;
     time.textContent = m.ts
       ? d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })
       : "";
 
-    // Un appui sur la bulle affiche ou masque l'heure d'envoi
-    bubble.addEventListener("click", () => {
-      time.classList.toggle("visible");
-    });
-
     list.appendChild(bubble);
+    list.appendChild(reactions);
     list.appendChild(time);
+
+    nodes[snap.key] = { bubble, reactions, time };
+    wireBubble(bubble, snap.key, time);
+    renderReactions(snap.key, m.r);
+
     list.scrollTop = list.scrollHeight;
   }, err => {
     showError("Lecture des messages refusée : " + err.message);
+  });
+
+  // Une réaction ajoutée après coup met à jour la bulle existante
+  msgsRef.on("child_changed", snap => {
+    const m = snap.val();
+    if (m) renderReactions(snap.key, m.r);
   });
 }
 
