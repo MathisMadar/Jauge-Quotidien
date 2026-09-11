@@ -300,22 +300,28 @@
 
   .msg-reactions {
     display: none;
-    gap: 3px;
+    gap: 2px;
     background: var(--card);
     border: 1px solid var(--line);
-    border-radius: 12px;
-    padding: 1px 6px;
-    font-size: 13px;
-    line-height: 1.5;
-    margin-top: -6px;
+    border-radius: 10px;
+    padding: 0 4px;
+    font-size: 10px;
+    line-height: 1.6;
+    /* Chevauche légèrement le bas de la bulle sans masquer le texte */
+    margin-top: -13px;
+    margin-bottom: 1px;
     width: fit-content;
+    position: relative;
+    z-index: 2;
+    /* Rendu plus mat que l'emoji d'origine */
+    filter: saturate(0.7) brightness(0.97);
   }
 
   .msg-reactions.visible { display: flex; }
 
-  .msg-reactions.mine { align-self: flex-end; margin-right: 6px; }
+  .msg-reactions.mine { align-self: flex-end; margin-right: 10px; }
 
-  .msg-reactions.theirs { align-self: flex-start; margin-left: 6px; }
+  .msg-reactions.theirs { align-self: flex-start; margin-left: 10px; }
 
   .notif-row {
     margin-top: 14px;
