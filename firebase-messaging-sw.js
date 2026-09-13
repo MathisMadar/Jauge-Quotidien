@@ -16,15 +16,19 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
-// Notification reçue alors que l'app est fermée ou en arrière-plan
+// Notification reçue alors que l'app est fermée ou en arrière-plan.
+// La fonction envoie des données seules, l'affichage est fait ici,
+// ce qui évite le doublon avec l'affichage automatique de Firebase.
 messaging.onBackgroundMessage(payload => {
-  const title = (payload.notification && payload.notification.title) || "Notre question du jour";
-  const body = (payload.notification && payload.notification.body) || "";
+  const d = payload.data || {};
+  const title = d.title || "Notre question du jour";
   self.registration.showNotification(title, {
-    body: body,
+    body: d.body || "",
     icon: "icon-192.png",
     badge: "icon-192.png",
-    data: { url: "https://mathismadar.github.io/Jauge-Quotidien/" }
+    tag: "quotidien",
+    renotify: true,
+    data: { url: d.url || "https://mathismadar.github.io/Jauge-Quotidien/" }
   });
 });
 

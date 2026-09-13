@@ -718,7 +718,7 @@
       <div class="quick-send">
         <div class="thread-title">Réagir</div>
         <div class="thread-input">
-          <textarea id="quick-input" rows="1" placeholder="Écrire à l'autre" maxlength="500"></textarea>
+          <textarea id="quick-input" name="quick-message" rows="1" autocomplete="off" autocorrect="on" autocapitalize="sentences" spellcheck="true" enterkeyhint="send" placeholder="Écrire à l'autre" maxlength="500"></textarea>
           <button class="thread-send" id="quick-send" aria-label="Envoyer">&uarr;</button>
         </div>
         <div class="sent-hint" id="sent-hint">Envoyé, à retrouver dans Discussion</div>
@@ -753,7 +753,7 @@
     <div class="thread-messages" id="thread-messages"></div>
     <div class="thread-empty" id="thread-empty">Aucun message pour l'instant.</div>
     <div class="thread-input">
-      <textarea id="msg-input" rows="1" placeholder="Écrire un message" maxlength="500"></textarea>
+      <textarea id="msg-input" name="chat-message" rows="1" autocomplete="off" autocorrect="on" autocapitalize="sentences" spellcheck="true" enterkeyhint="send" placeholder="Écrire un message" maxlength="500"></textarea>
       <button class="thread-send" id="msg-send" aria-label="Envoyer">&uarr;</button>
     </div>
     <div class="notif-row" id="notif-row">
@@ -965,6 +965,15 @@ document.getElementById("label-a").textContent = NAMES.A;
 document.getElementById("label-b").textContent = NAMES.B;
 
 const key = dateKey(today);
+
+// Sur iPhone, l'app installée n'est pas rechargée quand on la rouvre :
+// elle reprend en arrière-plan avec la date du jour précédent. On la
+// recharge dès qu'elle redevient visible un autre jour.
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && dateKey(new Date()) !== key) {
+    location.reload();
+  }
+});
 const slider = document.getElementById("slider");
 const sliderValue = document.getElementById("slider-value");
 const submitBtn = document.getElementById("submit-btn");
