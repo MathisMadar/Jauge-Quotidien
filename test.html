@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Test saisie</title>
+<style>
+  body { font-family: -apple-system, sans-serif; padding: 24px; }
+  label { display: block; margin: 18px 0 6px; font-size: 13px; color: #666; }
+  textarea { width: 100%; font-size: 16px; font-family: inherit;
+             padding: 10px; border: 1px solid #ccc; border-radius: 10px;
+             resize: none; }
+</style>
+</head>
+<body>
+
+<h3>Test du clavier</h3>
+<p style="font-size:13px;color:#666;">
+  Touche chaque champ et note si le clavier propose ton adresse
+  ou s'il affiche les suggestions du correcteur.
+</p>
+
+<label>1. Champ nu, aucun attribut</label>
+<textarea id="a" rows="2"></textarea>
+
+<label>2. Mêmes attributs que l'app</label>
+<textarea id="b" rows="2" autocomplete="off" autocorrect="on"
+          autocapitalize="sentences" spellcheck="true" enterkeyhint="send"
+          placeholder="Écrire à l'autre" maxlength="500"></textarea>
+
+<label>3. Champ input classique</label>
+<input id="c" type="text" style="width:100%;font-size:16px;padding:10px;
+       border:1px solid #ccc;border-radius:10px;">
+
+</body>
+</html>
