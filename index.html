@@ -576,6 +576,14 @@
 
   .day-cell.today { box-shadow: inset 0 0 0 2px var(--text); }
 
+  /* Égalité parfaite : contour doré, rare et repérable d'un coup d'œil */
+  .day-cell.perfect { box-shadow: inset 0 0 0 2.5px #D4A017; }
+
+  /* Si c'est aussi aujourd'hui, les deux contours se superposent */
+  .day-cell.perfect.today {
+    box-shadow: inset 0 0 0 2.5px #D4A017, inset 0 0 0 4.5px var(--text);
+  }
+
   .day-cell .num { font-size: 12px; color: rgba(0,0,0,0.45); }
 
   .legend {
@@ -845,9 +853,12 @@ const QUESTIONS = [
 ];
 
 function dayOfYear(date) {
-  const start = new Date(date.getFullYear(), 0, 0);
-  const diff = date - start;
-  return Math.floor(diff / 86400000);
+  // Calcul en UTC à partir des composantes locales : une soustraction
+  // directe entre deux dates est faussée par le changement d'heure
+  // (une heure d'écart suffit à décaler le résultat d'un jour).
+  const start = Date.UTC(date.getFullYear(), 0, 0);
+  const current = Date.UTC(date.getFullYear(), date.getMonth(), date.getDate());
+  return Math.round((current - start) / 86400000);
 }
 
 function dateKey(date) {
@@ -871,6 +882,11 @@ function showError(msg) {
 // Paliers identiques à ceux de la légende de l'historique.
 // Deux phrases par palier, alternées selon la parité du jour.
 const GAP_TIERS = [
+  {
+    max: 0,
+    color: "#C9E4C5",
+    texts: ["Match parfait aujourd'hui 😉"]
+  },
   {
     max: 1,
     color: "#C9E4C5",
@@ -1382,10 +1398,9 @@ let allEntries = null;
 let currentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
 function colorForGap(gap) {
-  if (gap <= 1) return "#C9E4C5";
-  if (gap <= 3) return "#A8D8CE";
-  if (gap <= 5) return "#F7C08A";
-  return "#F0A090";
+  // Même table que les phrases, pour que calendrier et commentaire
+  // ne puissent pas diverger
+  return GAP_TIERS.find(t => gap <= t.max).color;
 }
 
 function loadHistory() {
@@ -1446,6 +1461,7 @@ function renderCalendar() {
               && entry.B !== undefined && entry.B !== null) {
       const gap = Math.abs(Number(entry.A) - Number(entry.B));
       cell.style.background = colorForGap(gap);
+      if (gap === 0) cell.classList.add("perfect");
       cell.classList.add("filled");
       cell.addEventListener("click", () => showDayDetail(d, entry));
     }
