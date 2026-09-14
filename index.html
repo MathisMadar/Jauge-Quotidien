@@ -407,6 +407,7 @@
   }
 
   .thread-input {
+    margin: 0;
     display: flex;
     gap: 8px;
     align-items: flex-end;
@@ -760,10 +761,10 @@
   <section id="view-thread" class="card hidden">
     <div class="thread-messages" id="thread-messages"></div>
     <div class="thread-empty" id="thread-empty">Aucun message pour l'instant.</div>
-    <div class="thread-input">
+    <form class="thread-input" autocomplete="off" onsubmit="return false;">
       <textarea id="msg-input" rows="1" autocomplete="off" autocorrect="on" autocapitalize="sentences" spellcheck="true" enterkeyhint="send" placeholder="Écrire à l'autre" maxlength="500"></textarea>
-      <button class="thread-send" id="msg-send" aria-label="Envoyer">&uarr;</button>
-    </div>
+      <button type="button" class="thread-send" id="msg-send" aria-label="Envoyer">&uarr;</button>
+    </form>
     <div class="notif-row" id="notif-row">
       <button class="notif-btn" id="notif-btn">Activer les notifications</button>
     </div>
