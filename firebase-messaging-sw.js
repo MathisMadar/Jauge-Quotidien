@@ -37,9 +37,15 @@ self.addEventListener("notificationclick", event => {
   event.notification.close();
   const url = (event.notification.data && event.notification.data.url)
     || "https://mathismadar.github.io/Jauge-Quotidien/";
+
   event.waitUntil(
-    clients.matchAll({ type: "window", includeUncontrolled: true }).then(list => {
-      for (const client of list) {
+    // On retire aussi les autres notifications en attente : une fois
+    // l'app ouverte, elles n'ont plus lieu d'être
+    self.registration.getNotifications().then(list => {
+      list.forEach(n => n.close());
+      return clients.matchAll({ type: "window", includeUncontrolled: true });
+    }).then(windows => {
+      for (const client of windows) {
         if (client.url.indexOf("Jauge-Quotidien") !== -1 && "focus" in client) {
           return client.focus();
         }
