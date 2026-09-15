@@ -1113,6 +1113,35 @@ function registerToken() {
     });
 }
 
+/* ---------- Adaptation au clavier ---------- */
+
+// À l'ouverture du clavier, iOS réduit la zone visible et fait défiler
+// toute la page. On ajuste plutôt la hauteur de la liste à l'espace
+// restant, ce qui évite le décalage.
+function fitThreadToViewport() {
+  const vv = window.visualViewport;
+  if (!vv) return;
+  const list = document.getElementById("thread-messages");
+  if (!list || viewThread.classList.contains("hidden")) return;
+
+  const clavierOuvert = vv.height < window.innerHeight - 80;
+  if (!clavierOuvert) {
+    list.style.maxHeight = "";   // on rend la main au CSS
+    return;
+  }
+
+  const haut = list.getBoundingClientRect().top;
+  const placePourSaisie = 110;  // champ de saisie et marges sous la liste
+  const dispo = vv.height - haut - placePourSaisie;
+  list.style.maxHeight = Math.max(120, dispo) + "px";
+  list.scrollTop = list.scrollHeight;
+}
+
+if (window.visualViewport) {
+  window.visualViewport.addEventListener("resize", fitThreadToViewport);
+  window.visualViewport.addEventListener("scroll", fitThreadToViewport);
+}
+
 function setupThread() {
   // Chemin distinct du jour : le fil est commun à toute la durée
   const msgsRef = db.ref(`${SECRET_PATH}/messages`);
@@ -1154,6 +1183,9 @@ function setupThread() {
     }
     btn.addEventListener("click", send);
     field.addEventListener("input", () => autoGrow(field));
+    // Le clavier met un instant à s'ouvrir avant que la zone visible change
+    field.addEventListener("focus", () => setTimeout(fitThreadToViewport, 300));
+    field.addEventListener("blur", () => setTimeout(fitThreadToViewport, 300));
     // Entrée envoie, Maj+Entrée passe à la ligne
     field.addEventListener("keydown", e => {
       if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
