@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mesures clavier</title>
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+  body { font-family: -apple-system, sans-serif; margin: 0; padding: 16px;
+         background: #FFF3D6; }
+  h4 { margin: 0 0 10px; font-size: 15px; }
+  #vals { font-family: ui-monospace, monospace; font-size: 17px;
+          line-height: 1.7; background: #fff; border-radius: 12px;
+          padding: 14px; }
+  b { color: #C0392B; }
+  textarea { width: 100%; font-size: 16px; font-family: inherit;
+             padding: 10px 14px; margin-top: 16px; border: 1px solid #FBE3A8;
+             border-radius: 20px; resize: none; box-sizing: border-box; }
+  .spacer { height: 40vh; }
+</style>
+</head>
+<body>
+
+<h4>Touche le champ et lis les valeurs</h4>
+<div id="vals">en attente…</div>
+
+<textarea id="f" rows="1" placeholder="Touche ici"></textarea>
+
+<div class="spacer"></div>
+
+<script>
+const out = document.getElementById("vals");
+const f = document.getElementById("f");
+
+function maj() {
+  const vv = window.visualViewport;
+  const r = f.getBoundingClientRect();
+  const lignes = [
+    "innerHeight      : " + window.innerHeight,
+    "visualViewport   : " + (vv ? Math.round(vv.height) : "ABSENT"),
+    "vv.offsetTop     : " + (vv ? Math.round(vv.offsetTop) : "-"),
+    "scrollTop page   : " + Math.round(document.scrollingElement.scrollTop),
+    "bas du champ     : " + Math.round(r.bottom),
+    "<b>écart bas champ → bas zone visible : "
+      + (vv ? Math.round(vv.height - r.bottom) : "-") + "</b>"
+  ];
+  out.innerHTML = lignes.join("<br>");
+}
+
+maj();
+["focus", "blur", "input"].forEach(e => f.addEventListener(e, () => setTimeout(maj, 350)));
+window.addEventListener("scroll", maj);
+if (window.visualViewport) {
+  visualViewport.addEventListener("resize", maj);
+  visualViewport.addEventListener("scroll", maj);
+}
+setInterval(maj, 500);
+</script>
+</body>
+</html>
