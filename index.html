@@ -987,10 +987,25 @@ const key = dateKey(today);
 // elle reprend en arrière-plan avec la date du jour précédent. On la
 // recharge dès qu'elle redevient visible un autre jour.
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible" && dateKey(new Date()) !== key) {
+  if (document.visibilityState !== "visible") return;
+  if (dateKey(new Date()) !== key) {
     location.reload();
+    return;
   }
+  clearNotifications();
 });
+
+// Les notifications déjà affichées n'ont plus lieu d'être une fois
+// l'app ouverte : le service worker ne les retire pas de lui-même.
+function clearNotifications() {
+  if (!("serviceWorker" in navigator)) return;
+  navigator.serviceWorker.getRegistration()
+    .then(reg => reg && reg.getNotifications())
+    .then(list => { if (list) list.forEach(n => n.close()); })
+    .catch(() => {});
+}
+
+window.addEventListener("load", clearNotifications);
 const slider = document.getElementById("slider");
 const sliderValue = document.getElementById("slider-value");
 const submitBtn = document.getElementById("submit-btn");
@@ -1122,7 +1137,8 @@ function fitThreadToViewport() {
   const vv = window.visualViewport;
   if (!vv) return;
   const list = document.getElementById("thread-messages");
-  if (!list || viewThread.classList.contains("hidden")) return;
+  const zone = document.querySelector("#view-thread .thread-input");
+  if (!list || !zone || viewThread.classList.contains("hidden")) return;
 
   const clavierOuvert = vv.height < window.innerHeight - 80;
   if (!clavierOuvert) {
@@ -1130,22 +1146,25 @@ function fitThreadToViewport() {
     return;
   }
 
-  const haut = list.getBoundingClientRect().top;
-  const placePourSaisie = 110;  // champ de saisie et marges sous la liste
-  const dispo = vv.height - haut - placePourSaisie;
-  list.style.maxHeight = Math.max(120, dispo) + "px";
-  list.scrollTop = list.scrollHeight;
+  // Position de référence stable : sans ça, la mesure dépend
+  // de l'endroit où iOS a fait défiler la page
+  window.scrollTo(0, 0);
 
-  // iOS fait souvent défiler la page trop loin, à cause du contenu situé
-  // sous le champ. On la ramène pour coller le champ au clavier.
-  const champ = document.activeElement;
-  if (champ && champ.tagName === "TEXTAREA") {
-    const ecart = vv.height - champ.getBoundingClientRect().bottom;
-    const ecartVoulu = 12;
-    if (Math.abs(ecart - ecartVoulu) > 4) {
-      window.scrollBy(0, -(ecart - ecartVoulu));
-    }
+  // On ajuste la liste par rapport à l'écart réellement mesuré entre
+  // le bas du champ et le bas de la zone visible, plutôt qu'avec une
+  // réserve estimée qui laisse un vide sous le champ.
+  function ajuste() {
+    const bas = zone.getBoundingClientRect().bottom;
+    const delta = (vv.height - 12) - bas;
+    if (Math.abs(delta) < 3) return;
+    const hauteur = list.getBoundingClientRect().height;
+    list.style.maxHeight = Math.max(100, hauteur + delta) + "px";
+    list.scrollTop = list.scrollHeight;
   }
+
+  ajuste();
+  // Second passage : la première mesure peut précéder le rendu
+  requestAnimationFrame(ajuste);
 }
 
 if (window.visualViewport) {
