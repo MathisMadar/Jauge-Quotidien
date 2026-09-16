@@ -273,6 +273,10 @@
     margin-bottom: 14px;
   }
 
+  /* Pousse les messages vers le bas quand ils ne remplissent pas la zone.
+     Se réduit à zéro dès que le contenu dépasse, sans rogner le haut. */
+  .thread-spacer { flex: 1 0 0; min-height: 0; }
+
   .msg {
     max-width: 78%;
     padding: 9px 13px;
@@ -759,7 +763,7 @@
   </section>
 
   <section id="view-thread" class="card hidden">
-    <div class="thread-messages" id="thread-messages"></div>
+    <div class="thread-messages" id="thread-messages"><div class="thread-spacer"></div></div>
     <div class="thread-empty" id="thread-empty">Aucun message pour l'instant.</div>
     <form class="thread-input" autocomplete="off" onsubmit="return false;">
       <textarea id="msg-input" rows="1" autocomplete="off" autocorrect="on" autocapitalize="sentences" spellcheck="true" enterkeyhint="send" placeholder="Écrire à l'autre" maxlength="500"></textarea>
@@ -953,7 +957,7 @@ function selectTab(activeTab) {
   // Le verrou de défilement ne concerne que l'onglet Discussion
   document.body.style.overflow = "";
   const list = document.getElementById("thread-messages");
-  if (list) list.style.maxHeight = "";
+  if (list) list.style.height = "";
   TABS.forEach(([tab, view]) => {
     const on = tab === activeTab;
     tab.classList.toggle("active", on);
@@ -1146,7 +1150,7 @@ function fitThreadToViewport() {
 
   const clavierOuvert = vv.height < window.innerHeight - 80;
   if (!clavierOuvert) {
-    list.style.maxHeight = "";   // on rend la main au CSS
+    list.style.height = "";      // on rend la main au CSS
     document.body.style.overflow = "";
     return;
   }
@@ -1159,15 +1163,14 @@ function fitThreadToViewport() {
     document.body.style.overflow = "hidden";
   }
 
-  // On ajuste la liste par rapport à l'écart réellement mesuré entre
-  // le bas du champ et le bas de la zone visible, plutôt qu'avec une
-  // réserve estimée qui laisse un vide sous le champ.
+  // On impose une hauteur : une hauteur maximale ne remplit pas l'espace
+  // quand les messages sont peu nombreux.
   function ajuste() {
     const bas = zone.getBoundingClientRect().bottom;
     const delta = (vv.height - 12) - bas;
     if (Math.abs(delta) < 3) return;
     const hauteur = list.getBoundingClientRect().height;
-    list.style.maxHeight = Math.max(100, hauteur + delta) + "px";
+    list.style.height = Math.max(100, hauteur + delta) + "px";
     list.scrollTop = list.scrollHeight;
   }
 
