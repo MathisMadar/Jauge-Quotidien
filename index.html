@@ -1206,6 +1206,20 @@ if (window.visualViewport) {
 }
 window.addEventListener("orientationchange", () => setTimeout(ajusteVueDiscussion, 200));
 
+// Les événements de redimensionnement ne se déclenchent pas toujours en
+// mode installé : on relance nous-mêmes l'ajustement pendant l'ouverture
+// et la fermeture du clavier.
+let surveillance = null;
+function suitLeClavier() {
+  clearInterval(surveillance);
+  [0, 60, 120, 200, 300, 450, 650, 900].forEach(d => setTimeout(ajusteVueDiscussion, d));
+  let reste = 8;
+  surveillance = setInterval(() => {
+    ajusteVueDiscussion();
+    if (--reste <= 0) clearInterval(surveillance);
+  }, 150);
+}
+
 function setupThread() {
   // Chemin distinct du jour : le fil est commun à toute la durée
   const msgsRef = db.ref(`${SECRET_PATH}/messages`);
@@ -1247,6 +1261,8 @@ function setupThread() {
     }
     btn.addEventListener("click", send);
     field.addEventListener("input", () => autoGrow(field));
+    field.addEventListener("focus", suitLeClavier);
+    field.addEventListener("blur", suitLeClavier);
     // Entrée envoie, Maj+Entrée passe à la ligne
     field.addEventListener("keydown", e => {
       if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
