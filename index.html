@@ -654,7 +654,7 @@
   body.vue-discussion {
     overflow: hidden;
     min-height: 0;
-    padding-bottom: 6px;
+    padding-bottom: 24px;
   }
 
   /* Pendant la saisie, le titre, la date et les onglets laissent la
@@ -662,7 +662,12 @@
   body.saisie header,
   body.saisie nav.tabs { display: none; }
 
-  body.vue-discussion #view-thread { padding-bottom: 12px; }
+  /* Clavier ouvert : marges réduites au minimum pour coller à la barre */
+  body.vue-discussion.saisie { padding-bottom: 2px; }
+  body.vue-discussion.saisie #view-thread { padding-bottom: 6px; }
+  body.vue-discussion.saisie #thread-messages { margin-bottom: 8px; }
+
+  body.vue-discussion #view-thread { padding-bottom: 20px; }
 
   body.vue-discussion .app {
     display: flex;
