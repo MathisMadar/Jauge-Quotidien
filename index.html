@@ -654,8 +654,15 @@
   body.vue-discussion {
     overflow: hidden;
     min-height: 0;
-    padding-bottom: 12px;
+    padding-bottom: 6px;
   }
+
+  /* Pendant la saisie, le titre, la date et les onglets laissent la
+     place à la conversation. Ils réapparaissent à la fermeture. */
+  body.saisie header,
+  body.saisie nav.tabs { display: none; }
+
+  body.vue-discussion #view-thread { padding-bottom: 12px; }
 
   body.vue-discussion .app {
     display: flex;
@@ -1177,10 +1184,17 @@ function ajusteVueDiscussion() {
   const actif = document.body.classList.contains("vue-discussion");
   if (!actif) {
     document.body.style.height = "";
+    document.body.classList.remove("saisie");
     return;
   }
   const vv = window.visualViewport;
   document.body.style.height = (vv ? vv.height : window.innerHeight) + "px";
+
+  // Clavier ouvert : on ne change pas de mise en page, on masque
+  // seulement l'en-tête pour agrandir la conversation.
+  const clavier = vv ? vv.height < window.innerHeight - 100 : false;
+  document.body.classList.toggle("saisie", clavier);
+
   window.scrollTo(0, 0);
   const list = document.getElementById("thread-messages");
   if (list) list.scrollTop = list.scrollHeight;
