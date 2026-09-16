@@ -648,6 +648,38 @@
     cursor: pointer;
   }
 
+  /* Saisie en cours : la vue Discussion tient entièrement dans la zone
+     visible, sans défilement de page. Le champ se place donc en bas. */
+  body.clavier {
+    overflow: hidden;
+    padding-bottom: 0;
+    min-height: 0;
+  }
+
+  body.clavier .app {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+  }
+
+  body.clavier #view-thread {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  body.clavier #thread-messages {
+    flex: 1;
+    min-height: 0;
+    max-height: none;
+    height: auto;
+  }
+
+  body.clavier footer,
+  body.clavier #notif-row { display: none; }
+
   .hidden { display: none !important; }
 </style>
 </head>
@@ -954,17 +986,10 @@ const TABS = [
 ];
 
 function selectTab(activeTab) {
-  // On défait l'ancrage du champ, propre à l'onglet Discussion
+  // La mise en page de saisie ne concerne que l'onglet Discussion
+  document.body.classList.remove("clavier");
+  document.body.style.height = "";
   document.body.style.overflow = "";
-  const list = document.getElementById("thread-messages");
-  if (list) list.style.height = "";
-  const zone = document.querySelector("#view-thread .thread-input");
-  if (zone) {
-    zone.style.position = "";
-    zone.style.left = "";
-    zone.style.width = "";
-    zone.style.top = "";
-  }
   TABS.forEach(([tab, view]) => {
     const on = tab === activeTab;
     tab.classList.toggle("active", on);
@@ -1152,37 +1177,21 @@ function fitThreadToViewport() {
   const vv = window.visualViewport;
   if (!vv) return;
   const list = document.getElementById("thread-messages");
-  const zone = document.querySelector("#view-thread .thread-input");
-  if (!list || !zone || viewThread.classList.contains("hidden")) return;
+  if (!list || viewThread.classList.contains("hidden")) return;
 
   const clavierOuvert = vv.height < window.innerHeight - 80;
 
   if (!clavierOuvert) {
-    zone.style.position = "";
-    zone.style.left = "";
-    zone.style.width = "";
-    zone.style.top = "";
-    list.style.height = "";
+    document.body.classList.remove("clavier");
+    document.body.style.height = "";
     return;
   }
 
-  // Le champ est ancré au bas de la zone réellement visible. Agir sur les
-  // hauteurs ne suffisait pas : le contenu situé sous le champ empêchait
-  // la page de descendre davantage.
-  if (zone.style.position !== "fixed") {
-    const r = zone.getBoundingClientRect();
-    zone.style.left = r.left + "px";
-    zone.style.width = r.width + "px";
-    zone.style.position = "fixed";
-  }
-
-  const hauteurZone = zone.offsetHeight;
-  const hautDuChamp = vv.offsetTop + vv.height - hauteurZone - 12;
-  zone.style.top = hautDuChamp + "px";
-
-  // La liste occupe l'espace au-dessus du champ ancré
-  const hautListe = list.getBoundingClientRect().top;
-  list.style.height = Math.max(100, hautDuChamp - hautListe - 14) + "px";
+  // Toute la vue tient dans la zone visible : plus rien à faire défiler,
+  // donc le champ se retrouve en bas sans calcul de position.
+  document.body.style.height = vv.height + "px";
+  document.body.classList.add("clavier");
+  window.scrollTo(0, 0);
   list.scrollTop = list.scrollHeight;
 }
 
