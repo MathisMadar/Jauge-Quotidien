@@ -954,10 +954,17 @@ const TABS = [
 ];
 
 function selectTab(activeTab) {
-  // Le verrou de défilement ne concerne que l'onglet Discussion
+  // On défait l'ancrage du champ, propre à l'onglet Discussion
   document.body.style.overflow = "";
   const list = document.getElementById("thread-messages");
   if (list) list.style.height = "";
+  const zone = document.querySelector("#view-thread .thread-input");
+  if (zone) {
+    zone.style.position = "";
+    zone.style.left = "";
+    zone.style.width = "";
+    zone.style.top = "";
+  }
   TABS.forEach(([tab, view]) => {
     const on = tab === activeTab;
     tab.classList.toggle("active", on);
@@ -1149,38 +1156,39 @@ function fitThreadToViewport() {
   if (!list || !zone || viewThread.classList.contains("hidden")) return;
 
   const clavierOuvert = vv.height < window.innerHeight - 80;
+
   if (!clavierOuvert) {
-    list.style.height = "";      // on rend la main au CSS
-    document.body.style.overflow = "";
+    zone.style.position = "";
+    zone.style.left = "";
+    zone.style.width = "";
+    zone.style.top = "";
+    list.style.height = "";
     return;
   }
 
-  // Clavier ouvert : on fige la page et on dimensionne la liste pour
-  // qu'elle occupe l'espace restant. Sans ce verrou, iOS fait défiler
-  // la page et la mesure devient instable.
-  if (document.body.style.overflow !== "hidden") {
-    window.scrollTo(0, 0);
-    document.body.style.overflow = "hidden";
+  // Le champ est ancré au bas de la zone réellement visible. Agir sur les
+  // hauteurs ne suffisait pas : le contenu situé sous le champ empêchait
+  // la page de descendre davantage.
+  if (zone.style.position !== "fixed") {
+    const r = zone.getBoundingClientRect();
+    zone.style.left = r.left + "px";
+    zone.style.width = r.width + "px";
+    zone.style.position = "fixed";
   }
 
-  // On impose une hauteur : une hauteur maximale ne remplit pas l'espace
-  // quand les messages sont peu nombreux.
-  function ajuste() {
-    const bas = zone.getBoundingClientRect().bottom;
-    const delta = (vv.height - 12) - bas;
-    if (Math.abs(delta) < 3) return;
-    const hauteur = list.getBoundingClientRect().height;
-    list.style.height = Math.max(100, hauteur + delta) + "px";
-    list.scrollTop = list.scrollHeight;
-  }
+  const hauteurZone = zone.offsetHeight;
+  const hautDuChamp = vv.offsetTop + vv.height - hauteurZone - 12;
+  zone.style.top = hautDuChamp + "px";
 
-  ajuste();
-  // Second passage : la première mesure peut précéder le rendu
-  requestAnimationFrame(ajuste);
+  // La liste occupe l'espace au-dessus du champ ancré
+  const hautListe = list.getBoundingClientRect().top;
+  list.style.height = Math.max(100, hautDuChamp - hautListe - 14) + "px";
+  list.scrollTop = list.scrollHeight;
 }
 
 if (window.visualViewport) {
   window.visualViewport.addEventListener("resize", fitThreadToViewport);
+  window.visualViewport.addEventListener("scroll", fitThreadToViewport);
 }
 
 function setupThread() {
