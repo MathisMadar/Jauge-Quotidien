@@ -863,6 +863,7 @@ const QUESTIONS = [
   "As-tu bien mangé aujourd'hui ?",
   "Quel est ton niveau d'optimisme ?",
   "As-tu envie qu'on se voie bientôt ?",
+  "Avais-tu envie de rester sous la couette ?",
   "Quelle est ton humeur générale ?",
   "Quel est ton niveau de calme ?",
   "Es-tu en paix avec toi même ?",
@@ -873,6 +874,7 @@ const QUESTIONS = [
   "Quel est ton niveau de curiosité ?",
   "As-tu envie de rester seule aujourd'hui ?",
   "Quel est ton niveau de satisfaction général ?",
+  "Quel est ton niveau de gourmandise aujourd'hui ?",
   "As-tu envie de rire aujourd'hui ?",
   "Quel est ton niveau de fatigue mentale ?",
   "As-tu envie de sortir prendre l'air ?",
@@ -887,6 +889,7 @@ const QUESTIONS = [
   "Quel est ton niveau de sérénité ?",
   "Quel est ton niveau d'appétit ?",
   "As-tu envie de voyager en ce moment ?",
+  "Ta journée a-t-elle été chargée ?",
   "Quel est ton niveau de distraction ?",
   "As-tu envie de faire du sport cette semaine ?",
   "Quel est ton niveau d'énergie sociale ?",
@@ -895,6 +898,7 @@ const QUESTIONS = [
   "Ton réveil a-t-il été difficile ?",
   "Es-tu contente de ce que tu as fait aujourd'hui ?",
   "Est-ce que ton esprit divague aujourd'hui ?",
+  "À quel point es-tu râleuse aujourd'hui ?",
   "Es-tu heureuse ?",
   "Es-tu fière de toi ?",
   "As-tu foi en l'humanité ?",
@@ -918,8 +922,12 @@ function dateKey(date) {
   return `${y}-${m}-${d}`;
 }
 
+// Décalage de la rotation. À recalculer à chaque ajout de questions,
+// sinon toutes les questions à venir changent de jour.
+const DECALAGE = 21;
+
 function questionForDate(date) {
-  const idx = dayOfYear(date) % QUESTIONS.length;
+  const idx = (dayOfYear(date) + DECALAGE) % QUESTIONS.length;
   return QUESTIONS[idx];
 }
 
