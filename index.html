@@ -1135,6 +1135,17 @@ function fitThreadToViewport() {
   const dispo = vv.height - haut - placePourSaisie;
   list.style.maxHeight = Math.max(120, dispo) + "px";
   list.scrollTop = list.scrollHeight;
+
+  // iOS fait souvent défiler la page trop loin, à cause du contenu situé
+  // sous le champ. On la ramène pour coller le champ au clavier.
+  const champ = document.activeElement;
+  if (champ && champ.tagName === "TEXTAREA") {
+    const ecart = vv.height - champ.getBoundingClientRect().bottom;
+    const ecartVoulu = 12;
+    if (Math.abs(ecart - ecartVoulu) > 4) {
+      window.scrollBy(0, -(ecart - ecartVoulu));
+    }
+  }
 }
 
 if (window.visualViewport) {
