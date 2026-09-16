@@ -648,37 +648,38 @@
     cursor: pointer;
   }
 
-  /* Saisie en cours : la vue Discussion tient entièrement dans la zone
-     visible, sans défilement de page. Le champ se place donc en bas. */
-  body.clavier {
+  /* Onglet Discussion : mise en page fixe, jamais de défilement de page.
+     La hauteur suit la zone visible, donc le champ reste en bas que le
+     clavier soit ouvert ou non, sans bascule entre deux états. */
+  body.vue-discussion {
     overflow: hidden;
-    padding-bottom: 0;
     min-height: 0;
+    padding-bottom: 12px;
   }
 
-  body.clavier .app {
+  body.vue-discussion .app {
     display: flex;
     flex-direction: column;
     flex: 1;
     min-height: 0;
   }
 
-  body.clavier #view-thread {
+  body.vue-discussion #view-thread {
     flex: 1;
     display: flex;
     flex-direction: column;
     min-height: 0;
   }
 
-  body.clavier #thread-messages {
+  body.vue-discussion #thread-messages {
     flex: 1;
     min-height: 0;
     max-height: none;
     height: auto;
+    margin-bottom: 12px;
   }
 
-  body.clavier footer,
-  body.clavier #notif-row { display: none; }
+  body.vue-discussion footer { display: none; }
 
   .hidden { display: none !important; }
 </style>
@@ -986,15 +987,14 @@ const TABS = [
 ];
 
 function selectTab(activeTab) {
-  // La mise en page de saisie ne concerne que l'onglet Discussion
-  document.body.classList.remove("clavier");
-  document.body.style.height = "";
-  document.body.style.overflow = "";
   TABS.forEach(([tab, view]) => {
     const on = tab === activeTab;
     tab.classList.toggle("active", on);
     view.classList.toggle("hidden", !on);
   });
+  // La mise en page fixe ne vaut que pour l'onglet Discussion
+  document.body.classList.toggle("vue-discussion", activeTab === tabThread);
+  ajusteVueDiscussion();
 }
 
 tabToday.addEventListener("click", () => selectTab(tabToday));
@@ -1168,37 +1168,29 @@ function registerToken() {
     });
 }
 
-/* ---------- Adaptation au clavier ---------- */
+/* ---------- Mise en page de l'onglet Discussion ---------- */
 
-// À l'ouverture du clavier, iOS réduit la zone visible et fait défiler
-// toute la page. On ajuste plutôt la hauteur de la liste à l'espace
-// restant, ce qui évite le décalage.
-function fitThreadToViewport() {
-  const vv = window.visualViewport;
-  if (!vv) return;
-  const list = document.getElementById("thread-messages");
-  if (!list || viewThread.classList.contains("hidden")) return;
-
-  const clavierOuvert = vv.height < window.innerHeight - 80;
-
-  if (!clavierOuvert) {
-    document.body.classList.remove("clavier");
+// La hauteur suit la zone réellement visible. Pas de seuil, pas de
+// détection du clavier : quand il s'ouvre, la zone rétrécit et la vue
+// se réajuste d'elle-même, sans changer de mise en page.
+function ajusteVueDiscussion() {
+  const actif = document.body.classList.contains("vue-discussion");
+  if (!actif) {
     document.body.style.height = "";
     return;
   }
-
-  // Toute la vue tient dans la zone visible : plus rien à faire défiler,
-  // donc le champ se retrouve en bas sans calcul de position.
-  document.body.style.height = vv.height + "px";
-  document.body.classList.add("clavier");
+  const vv = window.visualViewport;
+  document.body.style.height = (vv ? vv.height : window.innerHeight) + "px";
   window.scrollTo(0, 0);
-  list.scrollTop = list.scrollHeight;
+  const list = document.getElementById("thread-messages");
+  if (list) list.scrollTop = list.scrollHeight;
 }
 
 if (window.visualViewport) {
-  window.visualViewport.addEventListener("resize", fitThreadToViewport);
-  window.visualViewport.addEventListener("scroll", fitThreadToViewport);
+  window.visualViewport.addEventListener("resize", ajusteVueDiscussion);
+  window.visualViewport.addEventListener("scroll", ajusteVueDiscussion);
 }
+window.addEventListener("orientationchange", () => setTimeout(ajusteVueDiscussion, 200));
 
 function setupThread() {
   // Chemin distinct du jour : le fil est commun à toute la durée
@@ -1241,9 +1233,6 @@ function setupThread() {
     }
     btn.addEventListener("click", send);
     field.addEventListener("input", () => autoGrow(field));
-    // Le clavier met un instant à s'ouvrir avant que la zone visible change
-    field.addEventListener("focus", () => setTimeout(fitThreadToViewport, 300));
-    field.addEventListener("blur", () => setTimeout(fitThreadToViewport, 300));
     // Entrée envoie, Maj+Entrée passe à la ligne
     field.addEventListener("keydown", e => {
       if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
