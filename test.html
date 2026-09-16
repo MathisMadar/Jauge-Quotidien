@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Diagnostic saisie</title>
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+  body { font-family: -apple-system, sans-serif; padding: 18px;
+         background: #FFF3D6; margin: 0; }
+  h4 { margin: 26px 0 6px; font-size: 14px; }
+  .note { font-size: 12px; color: #777; margin: 0 0 8px; }
+  .card { background: #fff; border-radius: 14px; padding: 14px; }
+  textarea { width: 100%; font-size: 16px; font-family: inherit;
+             padding: 10px 14px; border: 1px solid #FBE3A8;
+             border-radius: 20px; resize: none; box-sizing: border-box; }
+  .msgs { display: flex; flex-direction: column; gap: 8px;
+          max-height: 140px; overflow-y: auto; margin-bottom: 12px; }
+  .msg { max-width: 78%; padding: 9px 13px; border-radius: 16px;
+         font-size: 14px; background: #FBE3A8; align-self: flex-start; }
+  .msg.mine { align-self: flex-end; background: #2B2620; color: #FFF3D6; }
+  .sep { align-self: center; font-size: 11px; color: #9C8F6E;
+         font-weight: 600; padding: 6px 0 2px; }
+  .notif { margin-top: 14px; text-align: center; }
+  .notif button { border: 1px solid #FBE3A8; background: #FFF3D6;
+                  color: #9C8F6E; font-size: 12px; padding: 7px 14px;
+                  border-radius: 16px; }
+</style>
+</head>
+<body>
+
+<p class="note">
+  Installe cette page sur l'écran d'accueil, puis touche chaque champ.
+  Note ceux qui proposent ton adresse au lieu du correcteur.
+</p>
+
+<h4>1. Champ seul</h4>
+<div class="card">
+  <textarea rows="1" autocomplete="off" autocorrect="on"
+    autocapitalize="sentences" spellcheck="true"
+    placeholder="Écrire à l'autre" maxlength="500"></textarea>
+</div>
+
+<h4>2. Précédé de la liste de messages</h4>
+<div class="card">
+  <div class="msgs">
+    <div class="msg">Salut</div>
+    <div class="msg mine">Ça va ?</div>
+    <div class="msg">Oui et toi</div>
+  </div>
+  <textarea rows="1" autocomplete="off" autocorrect="on"
+    autocapitalize="sentences" spellcheck="true"
+    placeholder="Écrire à l'autre" maxlength="500"></textarea>
+</div>
+
+<h4>3. Précédé des séparateurs de date</h4>
+<div class="card">
+  <div class="msgs">
+    <div class="sep">vendredi 11 septembre</div>
+    <div class="msg">Salut</div>
+    <div class="sep">samedi 12 septembre</div>
+    <div class="msg mine">Ça va ?</div>
+  </div>
+  <textarea rows="1" autocomplete="off" autocorrect="on"
+    autocapitalize="sentences" spellcheck="true"
+    placeholder="Écrire à l'autre" maxlength="500"></textarea>
+</div>
+
+<h4>4. Suivi du bouton de notifications</h4>
+<div class="card">
+  <textarea rows="1" autocomplete="off" autocorrect="on"
+    autocapitalize="sentences" spellcheck="true"
+    placeholder="Écrire à l'autre" maxlength="500"></textarea>
+  <div class="notif"><button type="button">Activer les notifications</button></div>
+</div>
+
+<h4>5. Contexte complet, sans formulaire</h4>
+<div class="card">
+  <div class="msgs">
+    <div class="sep">samedi 12 septembre</div>
+    <div class="msg">Salut</div>
+    <div class="msg mine">Ça va ?</div>
+  </div>
+  <textarea rows="1" autocomplete="off" autocorrect="on"
+    autocapitalize="sentences" spellcheck="true"
+    placeholder="Écrire à l'autre" maxlength="500"></textarea>
+  <div class="notif"><button type="button">Activer les notifications</button></div>
+</div>
+
+<div style="height:60vh"></div>
+</body>
+</html>

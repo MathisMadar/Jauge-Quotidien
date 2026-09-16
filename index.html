@@ -950,6 +950,10 @@ const TABS = [
 ];
 
 function selectTab(activeTab) {
+  // Le verrou de défilement ne concerne que l'onglet Discussion
+  document.body.style.overflow = "";
+  const list = document.getElementById("thread-messages");
+  if (list) list.style.maxHeight = "";
   TABS.forEach(([tab, view]) => {
     const on = tab === activeTab;
     tab.classList.toggle("active", on);
@@ -1143,12 +1147,17 @@ function fitThreadToViewport() {
   const clavierOuvert = vv.height < window.innerHeight - 80;
   if (!clavierOuvert) {
     list.style.maxHeight = "";   // on rend la main au CSS
+    document.body.style.overflow = "";
     return;
   }
 
-  // Position de référence stable : sans ça, la mesure dépend
-  // de l'endroit où iOS a fait défiler la page
-  window.scrollTo(0, 0);
+  // Clavier ouvert : on fige la page et on dimensionne la liste pour
+  // qu'elle occupe l'espace restant. Sans ce verrou, iOS fait défiler
+  // la page et la mesure devient instable.
+  if (document.body.style.overflow !== "hidden") {
+    window.scrollTo(0, 0);
+    document.body.style.overflow = "hidden";
+  }
 
   // On ajuste la liste par rapport à l'écart réellement mesuré entre
   // le bas du champ et le bas de la zone visible, plutôt qu'avec une
@@ -1169,7 +1178,6 @@ function fitThreadToViewport() {
 
 if (window.visualViewport) {
   window.visualViewport.addEventListener("resize", fitThreadToViewport);
-  window.visualViewport.addEventListener("scroll", fitThreadToViewport);
 }
 
 function setupThread() {
