@@ -810,10 +810,10 @@
   <section id="view-thread" class="card hidden">
     <div class="thread-messages" id="thread-messages"><div class="thread-spacer"></div></div>
     <div class="thread-empty" id="thread-empty">Aucun message pour l'instant.</div>
-    <form class="thread-input" autocomplete="off" onsubmit="return false;">
-      <textarea id="msg-input" rows="1" autocomplete="off" autocorrect="on" autocapitalize="sentences" spellcheck="true" enterkeyhint="send" placeholder="Écrire à l'autre" maxlength="500"></textarea>
+    <div class="thread-input">
+      <textarea id="msg-input" name="message" rows="1" autocomplete="off" autocorrect="on" autocapitalize="sentences" spellcheck="true" enterkeyhint="send" placeholder="Écrire à l'autre" maxlength="500"></textarea>
       <button type="button" class="thread-send" id="msg-send" aria-label="Envoyer">&uarr;</button>
-    </form>
+    </div>
     <div class="notif-row" id="notif-row">
       <button class="notif-btn" id="notif-btn">Activer les notifications</button>
     </div>
