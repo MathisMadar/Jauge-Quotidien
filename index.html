@@ -870,8 +870,8 @@ const QUESTIONS = [
   "Es-tu gentille aujourd'hui ?",
   "As-tu envie de faire quelque chose de nouveau ?",
   "Quel est ton niveau de confiance aujourd'hui ?",
-  "As-tu eu le temps de souffler aujourd'hui ?",
   "Quel est ton niveau de curiosité ?",
+  "As-tu eu le temps de souffler aujourd'hui ?",
   "As-tu envie de rester seule aujourd'hui ?",
   "Quel est ton niveau de satisfaction général ?",
   "Quel est ton niveau de gourmandise aujourd'hui ?",
@@ -926,8 +926,25 @@ function dateKey(date) {
 // sinon toutes les questions à venir changent de jour.
 const DECALAGE = 21;
 
+// Questions posées une seule fois, à une date précise.
+// Chaque date spéciale décale la rotation d'un jour au lieu de sauter une question.
+const QUESTIONS_SPECIALES = {
+  "2026-09-21": "As-tu passé un bon anniversaire ?"
+};
+
+function specialesAvant(date) {
+  const cle = dateKey(date);
+  return Object.keys(QUESTIONS_SPECIALES).filter(function (k) {
+    return k.slice(0, 4) === cle.slice(0, 4) && k < cle;
+  }).length;
+}
+
 function questionForDate(date) {
-  const idx = (dayOfYear(date) + DECALAGE) % QUESTIONS.length;
+  const speciale = QUESTIONS_SPECIALES[dateKey(date)];
+  if (speciale) return speciale;
+
+  const n = QUESTIONS.length;
+  const idx = ((dayOfYear(date) + DECALAGE - specialesAvant(date)) % n + n) % n;
   return QUESTIONS[idx];
 }
 
