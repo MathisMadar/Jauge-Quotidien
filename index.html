@@ -863,7 +863,6 @@ const QUESTIONS = [
   "As-tu bien mangé aujourd'hui ?",
   "Quel est ton niveau d'optimisme ?",
   "As-tu envie qu'on se voie bientôt ?",
-  "Avais-tu envie de rester sous la couette ?",
   "Quelle est ton humeur générale ?",
   "Quel est ton niveau de calme ?",
   "Es-tu en paix avec toi même ?",
@@ -877,7 +876,9 @@ const QUESTIONS = [
   "Quel est ton niveau de gourmandise aujourd'hui ?",
   "As-tu envie de rire aujourd'hui ?",
   "Quel est ton niveau de fatigue mentale ?",
+  "Avais-tu envie de rester sous la couette ?",
   "As-tu envie de sortir prendre l'air ?",
+  "Tu veux un câlin ?",
   "Quel est ton niveau d'organisation aujourd'hui ?",
   "As-tu envie de cuisiner quelque chose aujourd'hui ?",
   "As-tu envie de faire une pause dans ta journée ?",
@@ -903,7 +904,20 @@ const QUESTIONS = [
   "Es-tu fière de toi ?",
   "As-tu foi en l'humanité ?",
   "As-tu envie de sortir ce soir ?",
-  "As-tu regardé ce que je t'ai conseillé sur la note ?"
+  "As-tu regardé ce que je t'ai conseillé sur la note ?",
+  "Quel est ton niveau de tendresse aujourd'hui ?",
+  "Quel est ton niveau de créativité ?",
+  "As-tu été productive aujourd'hui ?",
+  "Grasse matinée demain ?",
+  "As-tu pris soin de toi aujourd'hui ?",
+  "As-tu envie de te faire plaisir aujourd'hui ?",
+  "As-tu appris quelque chose d'intéressant aujourd'hui ?",
+  "Quel est ton niveau de courage aujourd'hui ?",
+  "As-tu envie d'aventure en ce moment ?",
+  "As-tu envie de regarder un film ce soir ?",
+  "As-tu envie de danser ?",
+  "Il fait beau chez toi ?",
+  "Quel est ton niveau de bavardage aujourd'hui ?"
 ];
 
 function dayOfYear(date) {
@@ -924,7 +938,7 @@ function dateKey(date) {
 
 // Décalage de la rotation. À recalculer à chaque ajout de questions,
 // sinon toutes les questions à venir changent de jour.
-const DECALAGE = 21;
+const DECALAGE = 23;
 
 // Questions posées une seule fois, à une date précise.
 // Chaque date spéciale décale la rotation d'un jour au lieu de sauter une question.
