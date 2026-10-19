@@ -897,7 +897,7 @@ const QUESTIONS = [
   "As-tu passé un bon moment aujourd'hui ?",
   "Comment tu te sens aujourd'hui ?",
   "Ton réveil a-t-il été difficile ?",
-  "Es-tu contente de ce que tu as fait aujourd'hui ?",
+  "Nos discussions me manquent mais savoir que tu réponds encore à la question du jour me fait du bien",
   "Est-ce que ton esprit divague aujourd'hui ?",
   "À quel point es-tu râleuse aujourd'hui ?",
   "Es-tu heureuse ?",
@@ -919,7 +919,8 @@ const QUESTIONS = [
   "Il fait beau chez toi ?",
   "Quel est ton niveau de bavardage aujourd'hui ?",
   "Quel est ton niveau d'organisation aujourd'hui ?",
-  "As-tu envie de faire du sport cette semaine ?"
+  "As-tu envie de faire du sport cette semaine ?",
+  "Es-tu contente de ce que tu as fait aujourd'hui ?"
 ];
 
 function dayOfYear(date) {
@@ -940,7 +941,7 @@ function dateKey(date) {
 
 // Décalage de la rotation. À recalculer à chaque ajout de questions,
 // sinon toutes les questions à venir changent de jour.
-const DECALAGE = 31;
+const DECALAGE = 35;
 
 // Questions posées une seule fois, à une date précise.
 // Chaque date spéciale décale la rotation d'un jour au lieu de sauter une question.
