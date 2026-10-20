@@ -17,6 +17,9 @@
     --a-color: #FF6F59;
     --b-color: #2EC4B6;
     --radius: 18px;
+    /* Flèche de réponse dessinée : le caractère ↩ devient un emoji
+       sur fond gris sur iPhone. Teinte donnée par background-color. */
+    --reply-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='9 17 4 12 9 7'/%3E%3Cpath d='M20 18v-2a4 4 0 0 0-4-4H4'/%3E%3C/svg%3E");
   }
 
   * { box-sizing: border-box; }
@@ -309,17 +312,37 @@
   .thread-messages { overflow-x: hidden; }
 
   .msg.swiping::before {
-    content: "↩";
+    content: "";
     position: absolute;
-    left: -26px;
+    left: -28px;
     top: 50%;
+    width: 18px;
+    height: 18px;
     transform: translateY(-50%);
-    font-size: 16px;
-    color: var(--text-soft);
-    opacity: var(--swipe, 0);
+    background-color: var(--text-soft);
+    -webkit-mask: var(--reply-icon) center / contain no-repeat;
+    mask: var(--reply-icon) center / contain no-repeat;
+    opacity: calc(var(--swipe, 0) * 0.7);
+    transition: transform 120ms ease;
   }
 
-  .msg.swiping.ready::before { color: var(--a-color); }
+  /* Ses propres messages se glissent vers la gauche : flèche à droite */
+  .msg.mine.swiping::before { left: auto; right: -28px; }
+
+  .msg.swiping.ready::before { opacity: 1; transform: translateY(-50%) scale(1.15); }
+
+  .msg-quote::before,
+  .reply-text::before {
+    content: "";
+    display: inline-block;
+    width: 11px;
+    height: 11px;
+    margin-right: 4px;
+    vertical-align: -1px;
+    background-color: currentColor;
+    -webkit-mask: var(--reply-icon) center / contain no-repeat;
+    mask: var(--reply-icon) center / contain no-repeat;
+  }
 
   .msg.settling { transition: transform 180ms ease; }
 
@@ -1577,7 +1600,7 @@ function setupThread() {
     if (!el) return;
     replyTo = msgKey;
     const who = el.m.u === ME ? "Toi" : NAMES[el.m.u];
-    replyText.textContent = `↩ ${who} : ${excerpt(el.m)}`;
+    replyText.textContent = `${who} : ${excerpt(el.m)}`;
     replyBar.classList.add("visible");
     input.focus();
   }
@@ -1704,9 +1727,11 @@ function setupThread() {
     bubble.addEventListener("mouseleave", cancelPress);
     bubble.addEventListener("contextmenu", e => e.preventDefault());
 
-    // Glisser vers la droite : la bulle suit le doigt, avec une résistance
-    // au-delà du seuil ; relâcher après le seuil passe en mode réponse
+    // Glisser vers la droite (vers la gauche pour ses propres messages) :
+    // la bulle suit le doigt, avec une résistance au-delà du seuil ;
+    // relâcher après le seuil passe en mode réponse
     const SEUIL = 55;
+    const dir = bubble.classList.contains("mine") ? -1 : 1;
     let x0 = 0, y0 = 0, dx = 0, mode = null; // null, "swipe" ou "scroll"
 
     bubble.addEventListener("touchstart", e => {
@@ -1721,16 +1746,16 @@ function setupThread() {
       const mx = e.touches[0].clientX - x0;
       const my = e.touches[0].clientY - y0;
       if (mode === null && (Math.abs(mx) > 8 || Math.abs(my) > 8)) {
-        mode = mx > 0 && Math.abs(mx) > Math.abs(my) * 1.2 ? "swipe" : "scroll";
+        mode = mx * dir > 0 && Math.abs(mx) > Math.abs(my) * 1.2 ? "swipe" : "scroll";
         if (mode === "swipe") {
           cancelPress();
           bubble.classList.add("swiping");
         }
       }
       if (mode !== "swipe") return;
-      dx = Math.max(0, mx);
+      dx = Math.max(0, mx * dir);
       const shift = dx < SEUIL ? dx : SEUIL + (dx - SEUIL) * 0.3;
-      bubble.style.transform = `translateX(${shift}px)`;
+      bubble.style.transform = `translateX(${shift * dir}px)`;
       bubble.style.setProperty("--swipe", Math.min(1, dx / SEUIL));
       bubble.classList.toggle("ready", dx >= SEUIL);
     }, { passive: true });
@@ -1776,7 +1801,7 @@ function setupThread() {
       if (m.re && m.re.t) {
         const quote = document.createElement("div");
         quote.className = "msg-quote";
-        quote.textContent = "↩ " + m.re.t;
+        quote.textContent = m.re.t;
         quote.addEventListener("click", e => {
           e.stopPropagation();
           showOriginal(m.re.k);
