@@ -659,16 +659,6 @@
 
   .login-form .error-msg { margin-top: 0; text-align: left; }
 
-  .login-later {
-    border: none;
-    background: none;
-    color: var(--text-soft);
-    font-size: 14px;
-    text-decoration: underline;
-    padding: 8px;
-    cursor: pointer;
-  }
-
   /* Onglet Discussion : mise en page fixe, jamais de défilement de page.
      La hauteur suit la zone visible, donc le champ reste en bas que le
      clavier soit ouvert ou non, sans bascule entre deux états. */
@@ -730,7 +720,6 @@
     <button type="submit" id="login-btn" class="primary">Se connecter</button>
     <div id="login-error" class="error-msg"></div>
   </form>
-  <button type="button" id="login-later" class="login-later hidden">Plus tard</button>
 </div>
 
 <div id="emoji-picker" class="emoji-picker">
@@ -1046,30 +1035,22 @@ const ROLES = {
   crugn98tRSY25K0yn0wLq4Ru3Oy2: "B"
 };
 
-// Tant que la base n'est pas verrouillée, « Plus tard » garde le rôle
-// choisi auparavant sur cet appareil. À passer à true au verrouillage.
-const CONNEXION_OBLIGATOIRE = false;
-
 const auth = firebase.auth();
 const setupEl = document.getElementById("setup");
 const loginForm = document.getElementById("login-form");
 const loginBtn = document.getElementById("login-btn");
 const loginError = document.getElementById("login-error");
-const loginLater = document.getElementById("login-later");
 let started = false;
 
 function start(role) {
   if (started) return;
   started = true;
   ME = role;
-  localStorage.setItem("jauge_user", ME);
   setupEl.classList.add("hidden");
   init();
 }
 
 function showLogin() {
-  const previous = localStorage.getItem("jauge_user");
-  loginLater.classList.toggle("hidden", CONNEXION_OBLIGATOIRE || !previous);
   setupEl.classList.remove("hidden");
 }
 
@@ -1118,10 +1099,6 @@ loginForm.addEventListener("submit", e => {
       }
     })
     .finally(() => { loginBtn.disabled = false; });
-});
-
-loginLater.addEventListener("click", () => {
-  start(localStorage.getItem("jauge_user"));
 });
 
 /* ---------- Onglets ---------- */
