@@ -636,15 +636,36 @@
     max-width: 280px;
   }
 
-  .setup-choices { display: flex; gap: 12px; }
+  .login-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+    max-width: 300px;
+  }
 
-  .setup-choices button {
+  /* 16px minimum : en dessous, iOS zoome sur le champ à la saisie */
+  .login-form input {
+    font-size: 16px;
+    font-family: inherit;
+    padding: 13px 14px;
     border: 2px solid var(--line);
-    background: var(--card);
-    padding: 14px 22px;
     border-radius: 12px;
-    font-size: 15px;
-    font-weight: 600;
+    background: var(--card);
+    color: var(--text);
+  }
+
+  .login-form input:focus { outline: none; border-color: var(--text-soft); }
+
+  .login-form .error-msg { margin-top: 0; text-align: left; }
+
+  .login-later {
+    border: none;
+    background: none;
+    color: var(--text-soft);
+    font-size: 14px;
+    text-decoration: underline;
+    padding: 8px;
     cursor: pointer;
   }
 
@@ -700,11 +721,16 @@
 
 <div id="setup" class="setup-overlay hidden">
   <h1>Notre question du jour</h1>
-  <p>Avant de commencer, indique qui tu es. Ce choix reste sur cet appareil.</p>
-  <div class="setup-choices">
-    <button data-user="A">Clara</button>
-    <button data-user="B">Mathis</button>
-  </div>
+  <p>Connecte-toi avec ton adresse e-mail et ton mot de passe. Ils ne te seront demandés qu'une fois sur cet appareil.</p>
+  <form id="login-form" class="login-form">
+    <input id="login-email" type="email" placeholder="Adresse e-mail"
+           autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false" required>
+    <input id="login-password" type="password" placeholder="Mot de passe"
+           autocomplete="current-password" required>
+    <button type="submit" id="login-btn" class="primary">Se connecter</button>
+    <div id="login-error" class="error-msg"></div>
+  </form>
+  <button type="button" id="login-later" class="login-later hidden">Plus tard</button>
 </div>
 
 <div id="emoji-picker" class="emoji-picker">
@@ -825,6 +851,7 @@
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
 <script>
@@ -1009,21 +1036,93 @@ function gapComment(gap, date) {
 
 /* ---------- Identité (A ou B), stockée sur l'appareil ---------- */
 
-let ME = localStorage.getItem("jauge_user");
+let ME = null;
 const OTHER = () => (ME === "A" ? "B" : "A");
 
+// Le compte connecté détermine le rôle. Ces identifiants ne sont pas
+// secrets : sans le mot de passe, ils ne donnent accès à rien.
+const ROLES = {
+  msgXQwddCAdUkPqTC9ROi0oQDM83: "A",
+  crugn98tRSY25K0yn0wLq4Ru3Oy2: "B"
+};
+
+// Tant que la base n'est pas verrouillée, « Plus tard » garde le rôle
+// choisi auparavant sur cet appareil. À passer à true au verrouillage.
+const CONNEXION_OBLIGATOIRE = false;
+
+const auth = firebase.auth();
 const setupEl = document.getElementById("setup");
-if (!ME) {
-  setupEl.classList.remove("hidden");
-  setupEl.querySelectorAll("button[data-user]").forEach(btn => {
-    btn.addEventListener("click", () => {
-      ME = btn.dataset.user;
-      localStorage.setItem("jauge_user", ME);
-      setupEl.classList.add("hidden");
-      init();
-    });
-  });
+const loginForm = document.getElementById("login-form");
+const loginBtn = document.getElementById("login-btn");
+const loginError = document.getElementById("login-error");
+const loginLater = document.getElementById("login-later");
+let started = false;
+
+function start(role) {
+  if (started) return;
+  started = true;
+  ME = role;
+  localStorage.setItem("jauge_user", ME);
+  setupEl.classList.add("hidden");
+  init();
 }
+
+function showLogin() {
+  const previous = localStorage.getItem("jauge_user");
+  loginLater.classList.toggle("hidden", CONNEXION_OBLIGATOIRE || !previous);
+  setupEl.classList.remove("hidden");
+}
+
+function showLoginError(text) {
+  loginError.textContent = text;
+  loginError.classList.add("visible");
+}
+
+// Appelé au démarrage (session gardée sur l'appareil) et après connexion
+auth.onAuthStateChanged(user => {
+  if (user) {
+    const role = ROLES[user.uid];
+    if (role) {
+      start(role);
+      return;
+    }
+    auth.signOut();
+    showLoginError("Ce compte n'a pas accès à l'application.");
+  }
+  if (!started) showLogin();
+});
+
+loginForm.addEventListener("submit", e => {
+  e.preventDefault();
+  loginBtn.disabled = true;
+  loginError.classList.remove("visible");
+  const email = document.getElementById("login-email").value.trim();
+  const password = document.getElementById("login-password").value;
+
+  auth.signInWithEmailAndPassword(email, password)
+    .then(() => {
+      // Ferme le clavier, qui resterait affiché sur iPhone
+      if (document.activeElement) document.activeElement.blur();
+    })
+    .catch(err => {
+      const code = err && err.code;
+      if (code === "auth/invalid-credential" || code === "auth/wrong-password"
+          || code === "auth/user-not-found" || code === "auth/invalid-email") {
+        showLoginError("Adresse e-mail ou mot de passe incorrect.");
+      } else if (code === "auth/too-many-requests") {
+        showLoginError("Trop d'essais. Réessaie dans quelques minutes.");
+      } else if (code === "auth/network-request-failed") {
+        showLoginError("Pas de connexion internet.");
+      } else {
+        showLoginError("Connexion impossible : " + err.message);
+      }
+    })
+    .finally(() => { loginBtn.disabled = false; });
+});
+
+loginLater.addEventListener("click", () => {
+  start(localStorage.getItem("jauge_user"));
+});
 
 /* ---------- Onglets ---------- */
 
@@ -1547,7 +1646,6 @@ function init() {
   }
 }
 
-if (ME) init();
 
 /* ---------- Historique (calendrier mensuel) ---------- */
 
