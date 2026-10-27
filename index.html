@@ -643,6 +643,133 @@
 
   .thread-photo:disabled { opacity: 0.4; cursor: default; }
 
+  /* Menu du bouton + : photo ou message vocal */
+  .attach-menu {
+    position: fixed;
+    display: none;
+    flex-direction: column;
+    background: var(--card);
+    border-radius: 14px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.18);
+    padding: 6px;
+    z-index: 55;
+  }
+
+  .attach-menu.visible { display: flex; }
+
+  .attach-menu button {
+    border: none;
+    background: none;
+    text-align: left;
+    font-size: 15px;
+    font-family: inherit;
+    color: var(--text);
+    padding: 10px 14px;
+    border-radius: 10px;
+    cursor: pointer;
+  }
+
+  .attach-menu button:active { background: var(--line); }
+
+  /* Barre d'enregistrement, à la place de la ligne de saisie */
+  .rec-bar { display: none; align-items: center; gap: 10px; }
+
+  .rec-bar.visible { display: flex; }
+
+  .rec-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--a-color);
+    flex-shrink: 0;
+    animation: rec-pulse 1s ease-in-out infinite;
+  }
+
+  .rec-bar.done .rec-dot { animation: none; opacity: 0.4; }
+
+  @keyframes rec-pulse { 50% { opacity: 0.3; } }
+
+  .rec-time {
+    font-size: 14px;
+    font-variant-numeric: tabular-nums;
+    color: var(--text);
+    min-width: 36px;
+  }
+
+  .rec-level {
+    flex: 1;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    overflow: hidden;
+  }
+
+  .rec-level span {
+    width: 3px;
+    min-height: 3px;
+    border-radius: 2px;
+    background: var(--text-soft);
+    flex-shrink: 0;
+  }
+
+  /* Bulle vocale : lecture, progression, durée */
+  .msg.voice { min-width: 200px; }
+
+  .voice-row { display: flex; align-items: center; gap: 10px; }
+
+  .voice-play {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 1.5px solid currentColor;
+    background: transparent;
+    color: inherit;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+
+  .voice-play svg { width: 12px; height: 12px; fill: currentColor; }
+
+  .voice-play.loading { opacity: 0.5; }
+
+  .voice-track {
+    position: relative;
+    flex: 1;
+    height: 4px;
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .voice-track::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: currentColor;
+    opacity: 0.25;
+  }
+
+  .voice-fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 0;
+    background: currentColor;
+  }
+
+  .voice-time {
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    opacity: 0.8;
+  }
+
+  .msg.voice.expired { min-width: 0; font-style: italic; }
+
   .photo-status {
     font-size: 12px;
     color: var(--text-soft);
@@ -1094,12 +1221,25 @@
       <button type="button" id="reply-cancel" aria-label="Annuler la réponse">&times;</button>
     </div>
     <form class="thread-input" autocomplete="off" onsubmit="return false;">
-      <button type="button" class="thread-photo" id="photo-btn" aria-label="Envoyer une photo">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
+      <button type="button" class="thread-photo" id="photo-btn" aria-label="Photo ou message vocal">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
       </button>
       <textarea id="msg-input" rows="1" autocomplete="off" autocorrect="on" autocapitalize="sentences" spellcheck="true" enterkeyhint="send" placeholder="Écrire à l'autre" maxlength="500"></textarea>
       <button type="button" class="thread-send" id="msg-send" aria-label="Envoyer">&uarr;</button>
     </form>
+    <div class="rec-bar" id="rec-bar">
+      <button type="button" class="thread-photo" id="rec-cancel" aria-label="Annuler l'enregistrement">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+      <span class="rec-dot"></span>
+      <span class="rec-time" id="rec-time">0:00</span>
+      <div class="rec-level" id="rec-level"></div>
+      <button type="button" class="thread-send" id="rec-send" aria-label="Envoyer le message vocal">&uarr;</button>
+    </div>
+    <div class="attach-menu" id="attach-menu">
+      <button type="button" id="attach-photo">📷 Photo</button>
+      <button type="button" id="attach-voice">🎤 Message vocal</button>
+    </div>
     <input type="file" id="photo-file" accept="image/*" hidden>
     <div class="photo-status" id="photo-status"></div>
     <div class="notif-row" id="notif-row">
@@ -1685,6 +1825,7 @@ function setupThread() {
 
   function excerpt(m) {
     if (m.ph) return "📷 Photo";
+    if (m.vo) return "🎤 Message vocal";
     return m.t.length > 80 ? m.t.slice(0, 79) + "…" : m.t;
   }
 
@@ -2029,7 +2170,7 @@ function setupThread() {
         });
         bubble.appendChild(quote);
       }
-      bubble.appendChild(document.createTextNode(m.t));
+      if (!m.vo) bubble.appendChild(document.createTextNode(m.t));
     }
 
     const reactions = document.createElement("div");
@@ -2045,7 +2186,8 @@ function setupThread() {
     list.appendChild(reactions);
     list.appendChild(time);
 
-    nodes[snap.key] = { bubble, reactions, time, m: { u: m.u, t: m.t, ph: m.ph } };
+    nodes[snap.key] = { bubble, reactions, time, m: { u: m.u, t: m.t, ph: m.ph, vo: m.vo } };
+    if (m.vo) renderVoice(snap.key, m);
     if (m.ph) {
       renderPhoto(snap.key, m);
       wireBubble(bubble, snap.key, time, () => {
@@ -2069,6 +2211,7 @@ function setupThread() {
     if (!m) return;
     renderReactions(snap.key, m.r);
     if (m.ph) renderPhoto(snap.key, m);
+    if (m.vo && m.ex) renderVoice(snap.key, m);
   });
 
   /* --- Photos éphémères ---
@@ -2134,7 +2277,32 @@ function setupThread() {
     });
   }
 
-  photoBtn.addEventListener("click", () => photoFile.click());
+  const attachMenu = document.getElementById("attach-menu");
+
+  function closeAttachMenu() { attachMenu.classList.remove("visible"); }
+
+  // Le menu s'affiche juste au-dessus du bouton +
+  photoBtn.addEventListener("click", e => {
+    e.stopPropagation();
+    if (attachMenu.classList.contains("visible")) { closeAttachMenu(); return; }
+    const r = photoBtn.getBoundingClientRect();
+    attachMenu.style.left = r.left + "px";
+    attachMenu.style.bottom = (window.innerHeight - r.top + 8) + "px";
+    attachMenu.classList.add("visible");
+  });
+
+  attachMenu.addEventListener("click", e => e.stopPropagation());
+  document.addEventListener("click", closeAttachMenu);
+
+  document.getElementById("attach-photo").addEventListener("click", () => {
+    closeAttachMenu();
+    photoFile.click();
+  });
+
+  document.getElementById("attach-voice").addEventListener("click", () => {
+    closeAttachMenu();
+    startRecording();
+  });
 
   photoFile.addEventListener("change", () => {
     const file = photoFile.files && photoFile.files[0];
@@ -2190,6 +2358,287 @@ function setupThread() {
     e.stopPropagation();
     viewer.classList.add("hidden");
     viewerImg.removeAttribute("src");
+  });
+
+  /* --- Messages vocaux ---
+     Le son est rangé à part (voices/<clé du message>) et téléchargé
+     seulement à la lecture : le fil reste léger et le quota de
+     téléchargement intact. Le message porte la durée. Les vocaux restent
+     dans le fil ; une fonction planifiée les supprime au bout d'un an. */
+
+  const voicesRef = db.ref(`${SECRET_PATH}/voices`);
+  const threadForm = input.closest("form");
+  const recBar = document.getElementById("rec-bar");
+  const recTime = document.getElementById("rec-time");
+  const recLevel = document.getElementById("rec-level");
+  const VOCAL_MAX = 120; // secondes
+  let rec = null; // enregistrement en cours
+
+  function formatDuree(sec) {
+    const s = Math.max(0, Math.round(sec));
+    return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+  }
+
+  function showRecBar() {
+    threadForm.classList.add("hidden"); // masqué, jamais retiré
+    recBar.classList.remove("done");
+    recBar.classList.add("visible");
+    recTime.textContent = "0:00";
+    recLevel.replaceChildren();
+  }
+
+  function hideRecBar() {
+    recBar.classList.remove("visible");
+    threadForm.classList.remove("hidden");
+  }
+
+  // Vumètre : une barre par mesure, les plus récentes à droite
+  function startMeter(r) {
+    try {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      r.ctx = new Ctx();
+      r.ctx.resume();
+      const analyser = r.ctx.createAnalyser();
+      analyser.fftSize = 512;
+      r.ctx.createMediaStreamSource(r.stream).connect(analyser);
+      const buf = new Uint8Array(analyser.fftSize);
+      let last = 0;
+      const loop = t => {
+        r.raf = requestAnimationFrame(loop);
+        if (t - last < 90) return;
+        last = t;
+        analyser.getByteTimeDomainData(buf);
+        let sum = 0;
+        for (const v of buf) sum += (v - 128) * (v - 128);
+        const level = Math.min(1, Math.sqrt(sum / buf.length) / 40);
+        const bar = document.createElement("span");
+        bar.style.height = Math.max(3, Math.round(level * 26)) + "px";
+        recLevel.appendChild(bar);
+        while (recLevel.children.length > 60) recLevel.firstChild.remove();
+      };
+      r.raf = requestAnimationFrame(loop);
+    } catch (e) { /* vumètre facultatif */ }
+  }
+
+  function stopRecorder(r) {
+    if (r.stopped) return;
+    r.stopped = true;
+    r.dur = Math.min(VOCAL_MAX, Math.round((Date.now() - r.start) / 1000));
+    clearInterval(r.timer);
+    cancelAnimationFrame(r.raf);
+    if (r.ctx) r.ctx.close().catch(() => {});
+    if (r.recorder.state !== "inactive") r.recorder.stop();
+    // Libère le micro (sinon iOS garde l'indicateur allumé)
+    r.stream.getTracks().forEach(t => t.stop());
+  }
+
+  function startRecording() {
+    if (rec) return;
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) {
+      setPhotoStatus("Les messages vocaux ne sont pas disponibles sur cet appareil.", true);
+      return;
+    }
+    setPhotoStatus("");
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+      const mime = ["audio/mp4", "audio/webm;codecs=opus", "audio/webm"]
+        .find(t => MediaRecorder.isTypeSupported(t));
+      const options = { audioBitsPerSecond: 32000 };
+      if (mime) options.mimeType = mime;
+      const recorder = new MediaRecorder(stream, options);
+      const r = { recorder, stream, chunks: [], start: Date.now(), stopped: false };
+      rec = r;
+      recorder.ondataavailable = e => { if (e.data && e.data.size) r.chunks.push(e.data); };
+      recorder.onstop = () => {
+        r.blob = new Blob(r.chunks, { type: recorder.mimeType || mime || "audio/mp4" });
+        if (r.sendWhenReady) sendVoice(r);
+      };
+      recorder.start();
+      showRecBar();
+      startMeter(r);
+      r.timer = setInterval(() => {
+        const sec = (Date.now() - r.start) / 1000;
+        recTime.textContent = formatDuree(Math.min(sec, VOCAL_MAX));
+        // Au bout de 2 minutes, on s'arrête et on attend l'envoi
+        if (sec >= VOCAL_MAX) {
+          stopRecorder(r);
+          recBar.classList.add("done");
+        }
+      }, 200);
+    }).catch(err => {
+      setPhotoStatus(err && err.name === "NotAllowedError"
+        ? "Accès au micro refusé : autorise-le dans les réglages de l'iPhone."
+        : "Micro indisponible : " + (err && err.message), true);
+    });
+  }
+
+  document.getElementById("rec-cancel").addEventListener("click", e => {
+    e.stopPropagation();
+    if (!rec) return;
+    rec.sendWhenReady = false;
+    stopRecorder(rec);
+    rec = null;
+    hideRecBar();
+  });
+
+  document.getElementById("rec-send").addEventListener("click", e => {
+    e.stopPropagation();
+    if (!rec) return;
+    rec.sendWhenReady = true;
+    if (rec.blob) sendVoice(rec);
+    else stopRecorder(rec); // l'envoi suit, à la fin de l'enregistrement
+  });
+
+  function sendVoice(r) {
+    if (rec === r) rec = null;
+    hideRecBar();
+    if (r.dur < 1 || !r.blob || !r.blob.size) {
+      setPhotoStatus("Message vocal trop court.", true);
+      return;
+    }
+    setPhotoStatus("Envoi du message vocal…");
+    const re = takeReply();
+    const now = firebase.database.ServerValue.TIMESTAMP;
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(new Error("lecture de l'enregistrement impossible"));
+      reader.readAsDataURL(r.blob);
+    }).then(data => {
+      const key = msgsRef.push().key;
+      const msg = { u: ME, t: "🎤 Message vocal", vo: 1, dur: r.dur, ts: now };
+      if (re) msg.re = re;
+      // Le son d'abord : quand le message arrive, il est déjà là
+      return voicesRef.child(key).set({ d: data, ts: now })
+        .then(() => msgsRef.child(key).set(msg));
+    })
+    .then(() => setPhotoStatus(""))
+    .catch(err => setPhotoStatus("Message vocal non envoyé : " + err.message, true));
+  }
+
+  /* Lecture : un seul lecteur pour tout le fil. iOS refuse de lancer un
+     son après une attente réseau ; on « débloque » donc le lecteur avec un
+     silence pendant le toucher, puis on charge le vrai son. */
+
+  const SILENCE = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=";
+  const ICON_PLAY = '<svg viewBox="0 0 12 12"><path d="M3 1.5v9l7.5-4.5z"/></svg>';
+  const ICON_PAUSE = '<svg viewBox="0 0 12 12"><path d="M2.5 1.5h2.5v9H2.5zM7 1.5h2.5v9H7z"/></svg>';
+  const player = new Audio();
+  const voiceUrls = {}; // clé -> adresse locale du son déjà téléchargé
+  let playingKey = null;
+
+  function renderVoice(msgKey, m) {
+    const el = nodes[msgKey];
+    if (!el) return;
+    const bubble = el.bubble;
+    bubble.classList.add("voice");
+    if (m.ex) {
+      if (playingKey === msgKey) { player.pause(); playingKey = null; }
+      bubble.classList.add("expired");
+      bubble.querySelectorAll(".voice-row").forEach(n => n.remove());
+      if (!bubble.querySelector(".voice-expired")) {
+        const t = document.createElement("span");
+        t.className = "voice-expired";
+        t.textContent = "🎤 Message vocal expiré";
+        bubble.appendChild(t);
+      }
+      return;
+    }
+    const row = document.createElement("div");
+    row.className = "voice-row";
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "voice-play";
+    btn.setAttribute("aria-label", "Écouter");
+    btn.innerHTML = ICON_PLAY;
+    const track = document.createElement("div");
+    track.className = "voice-track";
+    const fill = document.createElement("div");
+    fill.className = "voice-fill";
+    track.appendChild(fill);
+    const timeEl = document.createElement("span");
+    timeEl.className = "voice-time";
+    timeEl.textContent = formatDuree(m.dur || 0);
+    row.append(btn, track, timeEl);
+    bubble.appendChild(row);
+    el.voice = { btn, fill, timeEl, dur: m.dur || 0 };
+    btn.addEventListener("click", e => {
+      e.stopPropagation();
+      toggleVoice(msgKey);
+    });
+  }
+
+  function resetVoice(msgKey) {
+    const v = nodes[msgKey] && nodes[msgKey].voice;
+    if (!v) return;
+    v.btn.innerHTML = ICON_PLAY;
+    v.btn.classList.remove("loading");
+    v.fill.style.width = "0";
+    v.timeEl.textContent = formatDuree(v.dur);
+  }
+
+  function playVoice(msgKey) {
+    const v = nodes[msgKey].voice;
+    if (playingKey && playingKey !== msgKey) resetVoice(playingKey);
+    playingKey = msgKey;
+    if (player.dataset.key !== msgKey) {
+      player.src = voiceUrls[msgKey];
+      player.dataset.key = msgKey;
+    }
+    player.play().then(() => {
+      v.btn.classList.remove("loading");
+      v.btn.innerHTML = ICON_PAUSE;
+    }).catch(err => {
+      resetVoice(msgKey);
+      setPhotoStatus("Lecture impossible : " + err.message, true);
+    });
+  }
+
+  function toggleVoice(msgKey) {
+    const v = nodes[msgKey] && nodes[msgKey].voice;
+    if (!v) return;
+    if (playingKey === msgKey && !player.paused) {
+      player.pause();
+      v.btn.innerHTML = ICON_PLAY;
+      return;
+    }
+    if (voiceUrls[msgKey]) { playVoice(msgKey); return; }
+
+    // Premier toucher : déblocage pendant le geste, puis téléchargement
+    player.src = SILENCE;
+    player.dataset.key = "";
+    player.play().catch(() => {});
+    v.btn.classList.add("loading");
+    voicesRef.child(msgKey).once("value")
+      .then(snap => {
+        const voice = snap.val();
+        if (!voice || !voice.d) throw new Error("ce message vocal n'est plus disponible");
+        return fetch(voice.d).then(res => res.blob());
+      })
+      .then(blob => {
+        voiceUrls[msgKey] = URL.createObjectURL(blob);
+        playVoice(msgKey);
+      })
+      .catch(err => {
+        resetVoice(msgKey);
+        setPhotoStatus("Lecture impossible : " + err.message, true);
+      });
+  }
+
+  player.addEventListener("timeupdate", () => {
+    const v = playingKey && nodes[playingKey] && nodes[playingKey].voice;
+    if (!v || player.dataset.key !== playingKey) return;
+    // La durée enregistrée fait foi : celle du fichier est parfois inconnue
+    const total = isFinite(player.duration) && player.duration > 0 ? player.duration : v.dur;
+    v.fill.style.width = Math.min(100, player.currentTime / total * 100) + "%";
+    v.timeEl.textContent = formatDuree(Math.max(0, total - player.currentTime));
+  });
+
+  player.addEventListener("ended", () => {
+    if (playingKey && player.dataset.key === playingKey) {
+      resetVoice(playingKey);
+      player.dataset.key = "";
+      playingKey = null;
+    }
   });
 }
 
