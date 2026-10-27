@@ -474,6 +474,87 @@
 
   .emoji-picker button:active { background: var(--line); }
 
+  .emoji-picker button.more {
+    font-size: 22px;
+    color: var(--text-soft);
+    width: 38px;
+  }
+
+  /* Panneau « tous les emojis » */
+  .emoji-sheet-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.25);
+    z-index: 60;
+  }
+
+  .emoji-sheet {
+    position: fixed;
+    left: 0;
+    right: 0;
+    margin: 0 auto;
+    max-width: 480px;
+    background: var(--card);
+    border-radius: 20px 20px 0 0;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
+    z-index: 61;
+    display: flex;
+    flex-direction: column;
+    padding: 14px 10px 0;
+  }
+
+  .emoji-sheet-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-soft);
+    margin: 0 6px 4px;
+  }
+
+  .emoji-top { display: flex; flex-wrap: wrap; margin-bottom: 6px; }
+
+  .emoji-top button {
+    border: none;
+    background: transparent;
+    font-size: 26px;
+    line-height: 1;
+    padding: 5px;
+    border-radius: 10px;
+    cursor: pointer;
+  }
+
+  .emoji-top button:active { background: var(--line); }
+
+  .emoji-sheet-body { flex: 1; min-height: 0; display: flex; }
+
+  .emoji-sheet-msg {
+    margin: auto;
+    font-size: 13px;
+    color: var(--text-soft);
+    text-align: center;
+    padding: 20px;
+  }
+
+  .emoji-sheet emoji-picker {
+    width: 100%;
+    height: 100%;
+    --background: var(--card);
+    --border-size: 0;
+    --num-columns: 8;
+    --emoji-size: 1.6rem;
+    --emoji-padding: 0.4rem;
+    --indicator-color: var(--a-color);
+    --input-border-color: var(--line);
+    --input-border-radius: 12px;
+    --input-font-size: 16px; /* en dessous, iOS zoome sur le champ */
+    --input-font-color: var(--text);
+    --input-padding: 0.45rem 0.75rem;
+    --category-font-color: var(--text-soft);
+    --category-font-size: 0.8rem;
+    --button-active-background: var(--line);
+    --button-hover-background: var(--line);
+    --outline-color: var(--text-soft);
+  }
+
   .msg-time {
     font-size: 11px;
     color: var(--text-soft);
@@ -900,6 +981,18 @@
   <button data-emoji="🥺">🥺</button>
   <button data-emoji="👍">👍</button>
   <button data-emoji="🔥">🔥</button>
+  <button class="more" id="emoji-more" aria-label="Plus d'emojis">+</button>
+</div>
+
+<div id="emoji-sheet-backdrop" class="emoji-sheet-backdrop hidden"></div>
+<div id="emoji-sheet" class="emoji-sheet hidden">
+  <div id="emoji-top-wrap" class="hidden">
+    <div class="emoji-sheet-label">Les plus utilisés</div>
+    <div class="emoji-top" id="emoji-top"></div>
+  </div>
+  <div class="emoji-sheet-body" id="emoji-sheet-body">
+    <div class="emoji-sheet-msg">Chargement des emojis…</div>
+  </div>
 </div>
 
 <div class="app">
@@ -1679,6 +1772,134 @@ function setupThread() {
   });
 
   document.addEventListener("click", () => closePicker());
+
+  /* --- Tous les emojis ---
+     Grille emoji-picker-element chargée au premier « + ». Les emojis sont
+     dessinés par la police du téléphone, donc identiques au clavier.
+     « Les plus utilisés » ne compte que les emojis choisis ici (le compte
+     est gardé sur l'appareil) : les 6 réactions rapides n'y figurent pas,
+     elles sont déjà à portée de main. */
+
+  const EPE = "https://cdn.jsdelivr.net/npm/emoji-picker-element@1.29.1";
+  const EMOJI_DATA = "https://cdn.jsdelivr.net/npm/emoji-picker-element-data@1.8.0/fr/emojibase/data.json";
+  const sheet = document.getElementById("emoji-sheet");
+  const sheetBackdrop = document.getElementById("emoji-sheet-backdrop");
+  const sheetBody = document.getElementById("emoji-sheet-body");
+  const topWrap = document.getElementById("emoji-top-wrap");
+  const topRow = document.getElementById("emoji-top");
+  const sansVariante = e => e.replace(/\uFE0F/g, "");
+  const RAPIDES = [...picker.querySelectorAll("button[data-emoji]")]
+    .map(b => sansVariante(b.dataset.emoji));
+  let fullPicker = null;
+  let emojiDb = null;
+  let sheetTarget = null;
+
+  function loadFullPicker() {
+    if (fullPicker) return Promise.resolve();
+    return Promise.all([
+      import(EPE + "/picker.js"),
+      import(EPE + "/database.js"),
+      import(EPE + "/i18n/fr.js")
+    ]).then(([pickerMod, dbMod, fr]) => {
+      if (fullPicker) return;
+      const el = new pickerMod.default({ locale: "fr", dataSource: EMOJI_DATA, i18n: fr.default });
+      el.classList.add("light");
+      // La barre de favoris intégrée (en bas, sans titre) ferait doublon
+      const style = document.createElement("style");
+      style.textContent = ".favorites { display: none !important; }";
+      el.shadowRoot.appendChild(style);
+      el.addEventListener("emoji-click", e => chooseEmoji(e.detail.unicode, false));
+      // Recherche : le clavier réduit la zone visible, le panneau suit
+      el.addEventListener("focusin", suitLaFeuille);
+      el.addEventListener("focusout", suitLaFeuille);
+      sheetBody.replaceChildren(el);
+      fullPicker = el;
+      // Même base locale que la grille : mêmes compteurs
+      emojiDb = new dbMod.default({ locale: "fr", dataSource: EMOJI_DATA });
+    });
+  }
+
+  function renderTop() {
+    if (!emojiDb) return;
+    emojiDb.getTopFavoriteEmoji(24).then(list => {
+      const top = list
+        .map(e => e.unicode)
+        .filter(u => u && !RAPIDES.includes(sansVariante(u)))
+        .slice(0, 8);
+      topRow.replaceChildren(...top.map(u => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.textContent = u;
+        b.addEventListener("click", () => chooseEmoji(u, true));
+        return b;
+      }));
+      topWrap.classList.toggle("hidden", top.length === 0);
+    }).catch(() => {});
+  }
+
+  // Le panneau occupe le bas de la zone réellement visible, clavier compris
+  function placeSheet() {
+    if (sheet.classList.contains("hidden")) return;
+    const vv = window.visualViewport;
+    const h = vv ? vv.height : window.innerHeight;
+    const top = vv ? vv.offsetTop : 0;
+    sheet.style.top = (top + h * 0.3) + "px";
+    sheet.style.height = (h * 0.7) + "px";
+  }
+
+  function suitLaFeuille() {
+    [0, 100, 250, 450, 700, 1000].forEach(d => setTimeout(placeSheet, d));
+  }
+
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener("resize", placeSheet);
+    window.visualViewport.addEventListener("scroll", placeSheet);
+  }
+
+  function openSheet(msgKey) {
+    sheetTarget = msgKey;
+    // Chaque ouverture repart de la grille complète, sans l'ancienne recherche
+    const search = fullPicker && fullPicker.shadowRoot.querySelector("input");
+    if (search && search.value) {
+      search.value = "";
+      search.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+    sheetBackdrop.classList.remove("hidden");
+    sheet.classList.remove("hidden");
+    placeSheet();
+    loadFullPicker()
+      .then(renderTop)
+      .catch(() => {
+        sheetBody.innerHTML = '<div class="emoji-sheet-msg">Impossible de charger les emojis. Vérifie la connexion internet.</div>';
+      });
+  }
+
+  function closeSheet() {
+    sheetTarget = null;
+    sheet.classList.add("hidden");
+    sheetBackdrop.classList.add("hidden");
+    if (document.activeElement) document.activeElement.blur();
+  }
+
+  function chooseEmoji(unicode, fromTop) {
+    // La grille compte elle-même ses choix ; la ligne du haut, non
+    if (fromTop && emojiDb) emojiDb.incrementFavoriteEmojiCount(unicode).catch(() => {});
+    if (sheetTarget) setReaction(sheetTarget, unicode);
+    closeSheet();
+  }
+
+  document.getElementById("emoji-more").addEventListener("click", e => {
+    e.stopPropagation();
+    const target = pickerTarget;
+    closePicker();
+    if (target) openSheet(target);
+  });
+
+  sheet.addEventListener("click", e => e.stopPropagation());
+  sheetBackdrop.addEventListener("click", e => {
+    e.stopPropagation();
+    closeSheet();
+  });
 
   /* --- Gestes sur une bulle --- */
 
