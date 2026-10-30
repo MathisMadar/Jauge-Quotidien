@@ -1952,7 +1952,9 @@ function setupThread() {
       import(EPE + "/i18n/fr.js")
     ]).then(([pickerMod, dbMod, fr]) => {
       if (fullPicker) return;
-      const el = new pickerMod.default({ locale: "fr", dataSource: EMOJI_DATA, i18n: fr.default });
+      // Version fixée : sur iOS, la détection automatique de la bibliothèque
+      // relit un canvas brouillé et masque des emojis pourtant disponibles
+      const el = new pickerMod.default({ locale: "fr", dataSource: EMOJI_DATA, i18n: fr.default, emojiVersion: 17 });
       el.classList.add("light");
       // La barre de favoris intégrée (en bas, sans titre) ferait doublon
       const style = document.createElement("style");
