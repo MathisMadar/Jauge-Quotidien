@@ -1079,11 +1079,14 @@
   body.saisie nav.tabs { display: none; }
 
   /* Clavier ouvert : marges réduites au minimum pour coller à la barre */
-  body.vue-discussion.saisie { padding-top: 8px; padding-bottom: 2px; }
-  body.vue-discussion.saisie #view-thread { padding-top: 12px; padding-bottom: 6px; }
+  body.vue-discussion.saisie { padding-top: 2px; padding-bottom: 2px; }
+  body.vue-discussion.saisie #view-thread { padding-top: 6px; padding-bottom: 6px; }
   body.vue-discussion.saisie #thread-messages { margin-bottom: 8px; }
 
   body.vue-discussion #view-thread { padding-bottom: 20px; }
+
+  /* Plus de largeur pour les messages, sans changer la taille du cadre */
+  #view-thread { padding-left: 14px; padding-right: 14px; }
 
   body.vue-discussion .app {
     display: flex;
