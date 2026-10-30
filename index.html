@@ -378,6 +378,10 @@
 
   .reply-bar.visible { display: flex; }
 
+  .reply-bar.editing .reply-text::before { display: none; }
+
+  .msg-edited { font-size: 11px; opacity: 0.65; white-space: nowrap; }
+
   .reply-bar .reply-text {
     flex: 1;
     min-width: 0;
@@ -1108,7 +1112,8 @@
   <button data-emoji="😂">😂</button>
   <button data-emoji="😮">😮</button>
   <button data-emoji="🥺">🥺</button>
-  <button data-emoji="👍">👍</button>
+  <button data-emoji="👍" id="emoji-thumb">👍</button>
+  <button id="emoji-edit" class="hidden" aria-label="Corriger le message">✏️</button>
   <button data-emoji="🥳">🥳</button>
   <button class="more" id="emoji-more" aria-label="Plus d'emojis">+</button>
 </div>
@@ -1803,6 +1808,11 @@ function setupThread() {
   function wireInput(field, btn, onDone, withReply) {
     function send() {
       const text = field.value.trim();
+      if (withReply && editKey) {
+        // Un champ vidé n'efface pas le message : on reste en correction
+        if (text) saveEdit(text);
+        return;
+      }
       field.value = "";
       autoGrow(field);
       const re = withReply && text ? takeReply() : null;
@@ -1841,6 +1851,7 @@ function setupThread() {
   function startReply(msgKey) {
     const el = nodes[msgKey];
     if (!el) return;
+    cancelEdit();
     replyTo = msgKey;
     const who = el.m.u === ME ? "Toi" : NAMES[el.m.u];
     replyText.textContent = `${who} : ${excerpt(el.m)}`;
@@ -1863,8 +1874,79 @@ function setupThread() {
 
   document.getElementById("reply-cancel").addEventListener("click", e => {
     e.stopPropagation();
-    cancelReply();
+    if (editKey) cancelEdit();
+    else cancelReply();
   });
+
+  /* --- Correction d'un message ---
+     Une fois, dans les 15 minutes suivant l'envoi, sur ses propres messages
+     texte. Une correction commencée à temps peut se terminer après le délai.
+     La règle est appliquée par l'app : les deux comptes peuvent écrire. */
+
+  const DELAI_CORRECTION = 15 * 60 * 1000;
+  let editKey = null;
+  let serverOffset = 0;
+
+  db.ref(".info/serverTimeOffset").on("value", snap => {
+    serverOffset = snap.val() || 0;
+  });
+
+  function canEdit(el) {
+    const m = el && el.m;
+    return !!m && m.u === ME && !m.ph && !m.vo && !m.ed && !!m.ts
+      && Date.now() + serverOffset - m.ts < DELAI_CORRECTION;
+  }
+
+  function startEdit(msgKey) {
+    const el = nodes[msgKey];
+    if (!canEdit(el)) return;
+    cancelReply();
+    editKey = msgKey;
+    replyText.textContent = `✏️ Correction : ${excerpt(el.m)}`;
+    replyBar.classList.add("visible", "editing");
+    input.value = el.m.t;
+    autoGrow(input);
+    input.focus();
+  }
+
+  function cancelEdit() {
+    if (!editKey) return;
+    editKey = null;
+    replyBar.classList.remove("visible", "editing");
+    input.value = "";
+    autoGrow(input);
+  }
+
+  function saveEdit(text) {
+    const key = editKey;
+    const unchanged = nodes[key].m.t === text;
+    cancelEdit();
+    // Texte identique : la seule correction permise n'est pas consommée
+    if (unchanged) return;
+    msgsRef.child(key).transaction(m => {
+      if (!m) return m;
+      if (m.ed || m.u !== ME) return; // déjà corrigé : abandon
+      m.t = text;
+      m.ed = 1;
+      return m;
+    }).then(result => {
+      if (!result.committed) setPhotoStatus("Ce message a déjà été corrigé.", true);
+    }).catch(err => setPhotoStatus("Correction non enregistrée : " + err.message, true));
+  }
+
+  function renderEdited(msgKey, m) {
+    const el = nodes[msgKey];
+    if (!el || !el.textNode) return;
+    el.m.t = m.t;
+    el.m.ed = m.ed;
+    el.textNode.data = m.t;
+    if (m.ed && !el.editedMark) {
+      el.editedMark = document.createElement("span");
+      el.editedMark.className = "msg-edited";
+      el.editedMark.textContent = " · modifié";
+      el.bubble.appendChild(el.editedMark);
+    }
+  }
 
   // Toucher une citation ramène au message d'origine, mis en évidence
   function showOriginal(msgKey) {
@@ -1905,6 +1987,10 @@ function setupThread() {
 
   function openPicker(msgKey) {
     pickerTarget = msgKey;
+    // Sur un message corrigible, le crayon prend la place du pouce
+    const editable = canEdit(nodes[msgKey]);
+    document.getElementById("emoji-thumb").classList.toggle("hidden", editable);
+    document.getElementById("emoji-edit").classList.toggle("hidden", !editable);
     picker.classList.add("visible");
   }
 
@@ -1922,6 +2008,13 @@ function setupThread() {
   });
 
   document.addEventListener("click", () => closePicker());
+
+  document.getElementById("emoji-edit").addEventListener("click", e => {
+    e.stopPropagation();
+    const target = pickerTarget;
+    closePicker();
+    if (target) startEdit(target);
+  });
 
   /* --- Tous les emojis ---
      Grille emoji-picker-element chargée au premier « + ». Les emojis sont
@@ -2168,6 +2261,7 @@ function setupThread() {
 
     const bubble = document.createElement("div");
     bubble.className = "msg " + side;
+    let textNode = null;
     if (m.ph) {
       bubble.classList.add("photo");
     } else {
@@ -2181,7 +2275,10 @@ function setupThread() {
         });
         bubble.appendChild(quote);
       }
-      if (!m.vo) bubble.appendChild(document.createTextNode(m.t));
+      if (!m.vo) {
+        textNode = document.createTextNode(m.t);
+        bubble.appendChild(textNode);
+      }
     }
 
     const reactions = document.createElement("div");
@@ -2197,7 +2294,8 @@ function setupThread() {
     list.appendChild(reactions);
     list.appendChild(time);
 
-    nodes[snap.key] = { bubble, reactions, time, m: { u: m.u, t: m.t, ph: m.ph, vo: m.vo } };
+    nodes[snap.key] = { bubble, reactions, time, textNode, m: { u: m.u, t: m.t, ph: m.ph, vo: m.vo, ts: m.ts, ed: m.ed } };
+    if (m.ed) renderEdited(snap.key, m);
     if (m.vo) renderVoice(snap.key, m);
     if (m.ph) {
       renderPhoto(snap.key, m);
@@ -2223,6 +2321,8 @@ function setupThread() {
     renderReactions(snap.key, m.r);
     if (m.ph) renderPhoto(snap.key, m);
     if (m.vo && m.ex) renderVoice(snap.key, m);
+    if (nodes[snap.key]) nodes[snap.key].m.ts = m.ts;
+    if (m.ed) renderEdited(snap.key, m);
   });
 
   /* --- Photos éphémères ---
