@@ -484,6 +484,31 @@
     width: 38px;
   }
 
+  /* Crayon : un outil, pas une réaction. Dessiné en gris et séparé d'un trait */
+  .emoji-picker #emoji-edit {
+    position: relative;
+    margin-left: 8px;
+    width: 38px;
+    color: var(--text-soft);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .emoji-picker #emoji-edit.hidden { display: none; }
+
+  .emoji-picker #emoji-edit svg { width: 21px; height: 21px; }
+
+  .emoji-picker #emoji-edit::before {
+    content: "";
+    position: absolute;
+    left: -7px;
+    top: 7px;
+    bottom: 7px;
+    width: 1px;
+    background: var(--line);
+  }
+
   /* Panneau « tous les emojis » */
   .emoji-sheet-backdrop {
     position: fixed;
@@ -1113,8 +1138,10 @@
   <button data-emoji="😮">😮</button>
   <button data-emoji="🥺">🥺</button>
   <button data-emoji="👍" id="emoji-thumb">👍</button>
-  <button id="emoji-edit" class="hidden" aria-label="Corriger le message">✏️</button>
   <button data-emoji="🥳">🥳</button>
+  <button id="emoji-edit" class="hidden" aria-label="Corriger le message">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l1-4L16.5 4.5a2.1 2.1 0 0 1 3 3L8 19z"/><path d="M14.5 6.5l3 3"/></svg>
+  </button>
   <button class="more" id="emoji-more" aria-label="Plus d'emojis">+</button>
 </div>
 
@@ -1902,7 +1929,7 @@ function setupThread() {
     if (!canEdit(el)) return;
     cancelReply();
     editKey = msgKey;
-    replyText.textContent = `✏️ Correction : ${excerpt(el.m)}`;
+    replyText.textContent = `Correction : ${excerpt(el.m)}`;
     replyBar.classList.add("visible", "editing");
     input.value = el.m.t;
     autoGrow(input);
