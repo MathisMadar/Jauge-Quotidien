@@ -824,6 +824,173 @@
 
   /* Visionneuse plein écran. Pas d'appui long « Enregistrer l'image » :
      l'image ne reçoit aucun geste. Les captures d'écran restent possibles. */
+  /* Appareil photo maison : plein écran, icônes fines, sans bordures */
+  .cam {
+    position: fixed;
+    inset: 0;
+    background: #000;
+    z-index: 100;
+    overflow: hidden;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  .cam video,
+  .cam canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  .cam video { object-fit: cover; }
+
+  .cam video.mirror { transform: scaleX(-1); }
+
+  .cam canvas { object-fit: contain; }
+
+  .cam-top,
+  .cam-bottom {
+    position: absolute;
+    left: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    z-index: 3;
+  }
+
+  .cam-top { top: calc(14px + env(safe-area-inset-top)); }
+
+  .cam-bottom { bottom: calc(30px + env(safe-area-inset-bottom)); }
+
+  .cam-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    border: none;
+    padding: 0;
+    background: rgba(0,0,0,0.28);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+
+  .cam-icon svg { width: 21px; height: 21px; }
+
+  .cam-icon.on { color: #FFD66B; }
+
+  .cam-spacer { width: 42px; height: 42px; }
+
+  /* Déclencheur : anneau fin et disque dépoli */
+  .cam-shutter {
+    width: 74px;
+    height: 74px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.85);
+    background: transparent;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+
+  .cam-shutter span {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.22);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+    transition: transform 120ms ease, background 120ms ease;
+  }
+
+  .cam-shutter:active span { transform: scale(0.86); background: rgba(255,255,255,0.4); }
+
+  .cam-send {
+    width: 54px;
+    height: 54px;
+    border-radius: 50%;
+    border: none;
+    background: var(--b-color);
+    color: #fff;
+    font-size: 22px;
+    cursor: pointer;
+  }
+
+  .cam-hint {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: calc(104px + env(safe-area-inset-bottom));
+    text-align: center;
+    color: rgba(255,255,255,0.75);
+    font-size: 13px;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+    z-index: 3;
+    pointer-events: none;
+  }
+
+  .cam-msg {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    color: rgba(255,255,255,0.85);
+    font-size: 14px;
+    text-align: center;
+    padding: 24px;
+    z-index: 2;
+  }
+
+  .cam-msg button {
+    border: 1px solid rgba(255,255,255,0.5);
+    background: none;
+    color: #fff;
+    font-size: 14px;
+    font-family: inherit;
+    padding: 9px 16px;
+    border-radius: 20px;
+  }
+
+  /* Flash de la caméra avant : l'écran devient blanc */
+  .cam-flash-screen { position: absolute; inset: 0; background: #fff; z-index: 4; }
+
+  /* Saisie du texte : caractères blancs, sans bande */
+  .cam-text-edit {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    justify-content: center;
+    z-index: 3;
+  }
+
+  .cam-text-edit input {
+    width: 90%;
+    border: none;
+    outline: none;
+    background: transparent;
+    color: #fff;
+    caret-color: #fff;
+    text-align: center;
+    font-family: inherit;
+    font-size: 28px;
+    font-weight: 700;
+    text-shadow: 0 1px 6px rgba(0,0,0,0.55);
+  }
+
   .photo-viewer {
     position: fixed;
     inset: 0;
@@ -1130,6 +1297,36 @@
   </form>
 </div>
 
+<div id="cam" class="cam hidden">
+  <video id="cam-video" playsinline muted autoplay></video>
+  <canvas id="cam-shot" class="hidden"></canvas>
+  <div class="cam-msg hidden" id="cam-msg">
+    <span>La caméra n'est pas disponible.</span>
+    <button type="button" id="cam-gallery">Choisir dans la galerie</button>
+  </div>
+  <div class="cam-text-edit hidden" id="cam-text-edit">
+    <input id="cam-text-input" maxlength="40" enterkeyhint="done" autocomplete="off" autocorrect="off" spellcheck="false">
+  </div>
+  <div class="cam-hint hidden" id="cam-hint">Touche la photo pour écrire</div>
+  <div class="cam-flash-screen hidden" id="cam-flash-screen"></div>
+  <div class="cam-top">
+    <button type="button" class="cam-icon" id="cam-close" aria-label="Fermer">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+    <button type="button" class="cam-icon hidden" id="cam-flash" aria-label="Flash">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"><path d="M13 3L5 13.5h6L10 21l8-10.5h-6z"/><path class="flash-off" d="M4 4l16 16"/></svg>
+    </button>
+  </div>
+  <div class="cam-bottom">
+    <span class="cam-spacer"></span>
+    <button type="button" class="cam-shutter" id="cam-shutter" aria-label="Prendre la photo"><span></span></button>
+    <button type="button" class="cam-send hidden" id="cam-send" aria-label="Envoyer la photo">&uarr;</button>
+    <button type="button" class="cam-icon" id="cam-flip" aria-label="Changer de caméra">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 0 0-14.6-4.5M4 13a8 8 0 0 0 14.6 4.5"/><path d="M5 3v3.5h3.5M19 21v-3.5h-3.5"/></svg>
+    </button>
+  </div>
+</div>
+
 <div id="photo-viewer" class="photo-viewer hidden">
   <img id="photo-img" alt="">
   <div class="photo-hint" id="photo-hint"></div>
@@ -1282,6 +1479,7 @@
     </div>
     <div class="attach-menu" id="attach-menu">
       <button type="button" id="attach-photo">📷 Photo</button>
+      <button type="button" id="attach-gallery">🖼️ Galerie</button>
       <button type="button" id="attach-voice">🎤 Message vocal</button>
     </div>
     <input type="file" id="photo-file" accept="image/*" hidden>
@@ -2390,8 +2588,8 @@ function setupThread() {
     el.bubble.classList.toggle("openable", !mine && !m.ex && vues < 2);
   }
 
-  // Réduit la photo (1280 px au plus) et la convertit en JPEG
-  function compressPhoto(file) {
+  // Charge une photo de la galerie, réduite à 1280 px au plus
+  function fileToCanvas(file) {
     return new Promise((resolve, reject) => {
       const url = URL.createObjectURL(file);
       const img = new Image();
@@ -2402,13 +2600,7 @@ function setupThread() {
         canvas.height = Math.round(img.naturalHeight * ratio);
         canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
         URL.revokeObjectURL(url);
-        let quality = 0.7;
-        let data = canvas.toDataURL("image/jpeg", quality);
-        while (data.length > 700000 && quality > 0.35) {
-          quality -= 0.15;
-          data = canvas.toDataURL("image/jpeg", quality);
-        }
-        resolve(data);
+        resolve(canvas);
       };
       img.onerror = () => {
         URL.revokeObjectURL(url);
@@ -2417,6 +2609,275 @@ function setupThread() {
       img.src = url;
     });
   }
+
+  function canvasToJpeg(canvas) {
+    let quality = 0.7;
+    let data = canvas.toDataURL("image/jpeg", quality);
+    while (data.length > 700000 && quality > 0.35) {
+      quality -= 0.15;
+      data = canvas.toDataURL("image/jpeg", quality);
+    }
+    return data;
+  }
+
+  // Texte court en blanc, sans bande, centré ; taille relative à la photo
+  function drawPhotoText(ctx, w, h, text) {
+    if (!text) return;
+    const size = Math.round(w * 0.075);
+    ctx.save();
+    ctx.font = `700 ${size}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+    ctx.fillStyle = "#fff";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.shadowColor = "rgba(0,0,0,0.55)";
+    ctx.shadowBlur = size * 0.25;
+    ctx.shadowOffsetY = size * 0.04;
+    const lines = [];
+    let line = "";
+    for (const word of text.split(/\s+/)) {
+      const test = line ? line + " " + word : word;
+      if (line && ctx.measureText(test).width > w * 0.88) { lines.push(line); line = word; }
+      else line = test;
+    }
+    if (line) lines.push(line);
+    const lh = size * 1.2;
+    lines.forEach((l, i) => ctx.fillText(l, w / 2, h / 2 + (i - (lines.length - 1) / 2) * lh));
+    ctx.restore();
+  }
+
+  function sendPhotoData(data) {
+    photoBtn.disabled = true;
+    setPhotoStatus("Envoi de la photo…");
+    const key = msgsRef.push().key;
+    const now = firebase.database.ServerValue.TIMESTAMP;
+    // La photo d'abord : quand le message arrive, elle est déjà là
+    return photosRef.child(key).set({ d: data, ts: now })
+      .then(() => msgsRef.child(key).set({ u: ME, t: "📷 Photo", ph: 1, ts: now }))
+      .then(() => setPhotoStatus(""))
+      .catch(err => setPhotoStatus("Photo non envoyée : " + err.message, true))
+      .finally(() => { photoBtn.disabled = false; });
+  }
+
+  /* --- Appareil photo maison ---
+     Caméra avant et arrière, flash : lampe de l'iPhone si le navigateur y a
+     accès, écran blanc pour la caméra avant. La photo prend exactement le
+     cadre affiché. Un toucher sur la photo prise permet d'y écrire un texte
+     court, incrusté avant l'envoi. */
+
+  const cam = document.getElementById("cam");
+  const camVideo = document.getElementById("cam-video");
+  const camShot = document.getElementById("cam-shot");
+  const camMsg = document.getElementById("cam-msg");
+  const camFlash = document.getElementById("cam-flash");
+  const camFlashScreen = document.getElementById("cam-flash-screen");
+  const camShutter = document.getElementById("cam-shutter");
+  const camFlip = document.getElementById("cam-flip");
+  const camSend = document.getElementById("cam-send");
+  const camHint = document.getElementById("cam-hint");
+  const camTextEdit = document.getElementById("cam-text-edit");
+  const camTextInput = document.getElementById("cam-text-input");
+  let camStream = null;
+  let camFacing = "environment";
+  let camTorch = false;     // lampe disponible sur la caméra en cours
+  let camFlashOn = false;
+  let camBase = null;       // photo sans texte
+  let camText = "";
+  let camSource = "camera"; // "camera" ou "gallery"
+
+  function stopCamera() {
+    if (camStream) camStream.getTracks().forEach(t => t.stop());
+    camStream = null;
+    camVideo.srcObject = null;
+  }
+
+  function updateFlashButton() {
+    // Caméra avant : flash écran, toujours possible. Arrière : selon la lampe
+    const possible = camFacing === "user" || camTorch;
+    if (!possible) camFlashOn = false;
+    camFlash.classList.toggle("hidden", !possible);
+    camFlash.classList.toggle("on", camFlashOn);
+    camFlash.querySelector(".flash-off").style.display = camFlashOn ? "none" : "";
+  }
+
+  function startCamera() {
+    stopCamera();
+    camMsg.classList.add("hidden");
+    camVideo.classList.toggle("mirror", camFacing === "user");
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      camMsg.classList.remove("hidden");
+      return;
+    }
+    navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: camFacing }, width: { ideal: 1920 }, height: { ideal: 1920 } },
+      audio: false
+    }).then(stream => {
+      if (cam.classList.contains("hidden")) { stream.getTracks().forEach(t => t.stop()); return; }
+      camStream = stream;
+      camVideo.srcObject = stream;
+      camVideo.play().catch(() => {});
+      const track = stream.getVideoTracks()[0];
+      const caps = track && track.getCapabilities ? track.getCapabilities() : {};
+      camTorch = !!caps.torch;
+      updateFlashButton();
+    }).catch(() => {
+      camMsg.classList.remove("hidden");
+      camTorch = false;
+      updateFlashButton();
+    });
+  }
+
+  function showLive() {
+    camBase = null;
+    camText = "";
+    camShot.classList.add("hidden");
+    camHint.classList.add("hidden");
+    camTextEdit.classList.add("hidden");
+    camSend.classList.add("hidden");
+    camVideo.classList.remove("hidden");
+    camShutter.classList.remove("hidden");
+    camFlip.classList.remove("hidden");
+    startCamera();
+  }
+
+  function openCamera() {
+    camSource = "camera";
+    cam.classList.remove("hidden");
+    showLive();
+  }
+
+  function closeCamera() {
+    stopCamera();
+    camTextInput.blur();
+    cam.classList.add("hidden");
+    camBase = null;
+  }
+
+  // Revue de la photo (prise ou choisie) avant l'envoi
+  function showReview(canvas) {
+    stopCamera();
+    camBase = canvas;
+    camText = "";
+    camVideo.classList.add("hidden");
+    camMsg.classList.add("hidden");
+    camShutter.classList.add("hidden");
+    camFlip.classList.add("hidden");
+    camFlash.classList.add("hidden");
+    camShot.classList.remove("hidden");
+    camHint.classList.remove("hidden");
+    camSend.classList.remove("hidden");
+    renderShot();
+  }
+
+  function renderShot(withText = true) {
+    camShot.width = camBase.width;
+    camShot.height = camBase.height;
+    const ctx = camShot.getContext("2d");
+    ctx.drawImage(camBase, 0, 0);
+    if (withText) drawPhotoText(ctx, camBase.width, camBase.height, camText);
+  }
+
+  // Capture du cadre affiché (la vidéo est rognée pour remplir l'écran)
+  function captureFrame() {
+    const vw = camVideo.videoWidth;
+    const vh = camVideo.videoHeight;
+    if (!vw || !vh) return null;
+    const screenRatio = cam.clientWidth / cam.clientHeight;
+    let cw = vw, ch = vh;
+    if (vw / vh > screenRatio) cw = vh * screenRatio;
+    else ch = vw / screenRatio;
+    const r = Math.min(1, 1280 / Math.max(cw, ch));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(cw * r);
+    canvas.height = Math.round(ch * r);
+    const ctx = canvas.getContext("2d");
+    if (camFacing === "user") { ctx.translate(canvas.width, 0); ctx.scale(-1, 1); }
+    ctx.drawImage(camVideo, (vw - cw) / 2, (vh - ch) / 2, cw, ch, 0, 0, canvas.width, canvas.height);
+    return canvas;
+  }
+
+  const wait = ms => new Promise(r => setTimeout(r, ms));
+
+  async function takePhoto() {
+    if (!camStream) return;
+    let frame;
+    if (camFlashOn && camFacing === "user") {
+      camFlashScreen.classList.remove("hidden");
+      await wait(350); // le temps que l'exposition s'adapte à l'écran blanc
+      frame = captureFrame();
+      camFlashScreen.classList.add("hidden");
+    } else if (camFlashOn && camTorch) {
+      const track = camStream.getVideoTracks()[0];
+      try {
+        await track.applyConstraints({ advanced: [{ torch: true }] });
+        await wait(400);
+      } catch (e) { /* lampe refusée : photo sans flash */ }
+      frame = captureFrame();
+      track.applyConstraints({ advanced: [{ torch: false }] }).catch(() => {});
+    } else {
+      frame = captureFrame();
+    }
+    if (frame) showReview(frame);
+  }
+
+  camShutter.addEventListener("click", takePhoto);
+
+  camFlip.addEventListener("click", () => {
+    camFacing = camFacing === "user" ? "environment" : "user";
+    startCamera();
+  });
+
+  camFlash.addEventListener("click", () => {
+    camFlashOn = !camFlashOn;
+    updateFlashButton();
+  });
+
+  // × : reprendre la photo, ou fermer (galerie, caméra en direct)
+  document.getElementById("cam-close").addEventListener("click", () => {
+    if (camBase && camSource === "camera") showLive();
+    else closeCamera();
+  });
+
+  document.getElementById("cam-gallery").addEventListener("click", () => {
+    closeCamera();
+    photoFile.click();
+  });
+
+  // Texte : un toucher sur la photo ouvre la saisie, à nouveau pour modifier
+  camShot.addEventListener("click", () => {
+    if (!camBase) return;
+    if (!camTextEdit.classList.contains("hidden")) { camTextInput.blur(); return; }
+    renderShot(false);
+    camHint.classList.add("hidden");
+    camTextInput.value = camText;
+    camTextEdit.classList.remove("hidden");
+    camTextInput.focus();
+  });
+
+  function endTextEdit() {
+    if (camTextEdit.classList.contains("hidden")) return;
+    camText = camTextInput.value.trim();
+    camTextEdit.classList.add("hidden");
+    if (camBase) renderShot();
+  }
+
+  camTextInput.addEventListener("blur", endTextEdit);
+  camTextInput.addEventListener("keydown", e => {
+    if (e.key === "Enter") { e.preventDefault(); camTextInput.blur(); }
+  });
+
+  camSend.addEventListener("click", () => {
+    if (!camBase) return;
+    endTextEdit();
+    const final = document.createElement("canvas");
+    final.width = camBase.width;
+    final.height = camBase.height;
+    const ctx = final.getContext("2d");
+    ctx.drawImage(camBase, 0, 0);
+    drawPhotoText(ctx, final.width, final.height, camText);
+    const data = canvasToJpeg(final);
+    closeCamera();
+    sendPhotoData(data);
+  });
 
   const attachMenu = document.getElementById("attach-menu");
 
@@ -2437,6 +2898,11 @@ function setupThread() {
 
   document.getElementById("attach-photo").addEventListener("click", () => {
     closeAttachMenu();
+    openCamera();
+  });
+
+  document.getElementById("attach-gallery").addEventListener("click", () => {
+    closeAttachMenu();
     photoFile.click();
   });
 
@@ -2445,23 +2911,16 @@ function setupThread() {
     startRecording();
   });
 
+  // Photo de la galerie : même écran de revue, texte possible
   photoFile.addEventListener("change", () => {
     const file = photoFile.files && photoFile.files[0];
     photoFile.value = "";
     if (!file) return;
-
-    photoBtn.disabled = true;
-    setPhotoStatus("Envoi de la photo…");
-    const key = msgsRef.push().key;
-    const now = firebase.database.ServerValue.TIMESTAMP;
-
-    compressPhoto(file)
-      // La photo d'abord : quand le message arrive, elle est déjà là
-      .then(data => photosRef.child(key).set({ d: data, ts: now }))
-      .then(() => msgsRef.child(key).set({ u: ME, t: "📷 Photo", ph: 1, ts: now }))
-      .then(() => setPhotoStatus(""))
-      .catch(err => setPhotoStatus("Photo non envoyée : " + err.message, true))
-      .finally(() => { photoBtn.disabled = false; });
+    fileToCanvas(file).then(canvas => {
+      camSource = "gallery";
+      cam.classList.remove("hidden");
+      showReview(canvas);
+    }).catch(err => setPhotoStatus("Photo illisible : " + err.message, true));
   });
 
   function openPhoto(msgKey) {
