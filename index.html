@@ -850,6 +850,27 @@
 
   .cam video { object-fit: contain; }
 
+  /* Le pincement sert au zoom de la caméra, pas au zoom de la page */
+  .cam { touch-action: none; }
+
+  .cam-zoom {
+    position: absolute;
+    left: 50%;
+    bottom: calc(146px + env(safe-area-inset-bottom));
+    transform: translateX(-50%);
+    padding: 4px 10px;
+    border-radius: 12px;
+    background: rgba(0,0,0,0.35);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    color: #fff;
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+    z-index: 3;
+    pointer-events: none;
+    transition: opacity 200ms ease;
+  }
+
   .cam video.mirror { transform: scaleX(-1); }
 
   .cam canvas { object-fit: contain; }
@@ -1314,6 +1335,7 @@
     <input id="cam-text-input" maxlength="40" enterkeyhint="done" autocomplete="off" autocorrect="off" spellcheck="false">
   </div>
   <div class="cam-hint hidden" id="cam-hint">Touche la photo pour écrire</div>
+  <div class="cam-zoom hidden" id="cam-zoom"></div>
   <div class="cam-flash-screen hidden" id="cam-flash-screen"></div>
   <div class="cam-top">
     <button type="button" class="cam-icon" id="cam-close" aria-label="Fermer">
@@ -2689,8 +2711,11 @@ function setupThread() {
   let camBase = null;       // photo sans texte
   let camText = "";
   let camSource = "camera"; // "camera" ou "gallery"
+  let camZoom = null;       // {min, max, cur} si la caméra accepte le zoom
 
   function stopCamera() {
+    camZoom = null;
+    document.getElementById("cam-zoom").classList.add("hidden");
     if (camStream) camStream.getTracks().forEach(t => t.stop());
     camStream = null;
     camVideo.srcObject = null;
@@ -2726,6 +2751,11 @@ function setupThread() {
       const caps = track && track.getCapabilities ? track.getCapabilities() : {};
       camTorch = !!caps.torch;
       updateFlashButton();
+      // Zoom : seulement le vrai zoom de la caméra, s'il est accessible
+      const settings = track && track.getSettings ? track.getSettings() : {};
+      camZoom = caps.zoom && caps.zoom.max > caps.zoom.min
+        ? { min: caps.zoom.min, max: caps.zoom.max, cur: settings.zoom || caps.zoom.min }
+        : null;
     }).catch(() => {
       camMsg.classList.remove("hidden");
       camTorch = false;
@@ -2823,6 +2853,47 @@ function setupThread() {
   }
 
   camShutter.addEventListener("click", takePhoto);
+
+  // Pincement à deux doigts sur l'image en direct : zoom de la caméra
+  const camZoomLabel = document.getElementById("cam-zoom");
+  let pinch = null;
+  let zoomPending = null;
+  let zoomHideTimer = null;
+
+  const touchDist = t => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+
+  function applyZoom(z) {
+    zoomPending = z;
+    if (zoomPending === null || !camStream) return;
+    requestAnimationFrame(() => {
+      if (zoomPending === null || !camStream) return;
+      const value = zoomPending;
+      zoomPending = null;
+      camStream.getVideoTracks()[0].applyConstraints({ advanced: [{ zoom: value }] }).catch(() => {});
+    });
+  }
+
+  cam.addEventListener("touchstart", e => {
+    if (e.touches.length !== 2 || !camZoom || camBase) return;
+    pinch = { dist: touchDist(e.touches), zoom: camZoom.cur };
+    clearTimeout(zoomHideTimer);
+  }, { passive: true });
+
+  cam.addEventListener("touchmove", e => {
+    if (!pinch || e.touches.length !== 2 || !camZoom) return;
+    const z = Math.min(camZoom.max, Math.max(camZoom.min, pinch.zoom * touchDist(e.touches) / pinch.dist));
+    camZoom.cur = z;
+    camZoomLabel.textContent = z.toFixed(1).replace(".", ",") + "×";
+    camZoomLabel.classList.remove("hidden");
+    applyZoom(z);
+  }, { passive: true });
+
+  cam.addEventListener("touchend", e => {
+    if (!pinch || e.touches.length >= 2) return;
+    pinch = null;
+    clearTimeout(zoomHideTimer);
+    zoomHideTimer = setTimeout(() => camZoomLabel.classList.add("hidden"), 1200);
+  });
 
   camFlip.addEventListener("click", () => {
     camFacing = camFacing === "user" ? "environment" : "user";
