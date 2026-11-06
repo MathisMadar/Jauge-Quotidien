@@ -509,6 +509,88 @@
     background: var(--line);
   }
 
+  /* GIF : extraits de films du domaine public, hébergés avec l'app */
+  .msg.gif { padding: 4px; }
+
+  .msg.gif .msg-quote { margin: 4px 8px 6px; }
+
+  .msg-gif {
+    display: block;
+    width: 200px;
+    max-width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+    border-radius: 12px;
+    background: #000;
+  }
+
+  .gif-search {
+    font-size: 16px; /* en dessous, iOS zoome sur le champ */
+    font-family: inherit;
+    padding: 9px 12px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--bg);
+    color: var(--text);
+    outline: none;
+    margin: 0 4px 10px;
+  }
+
+  .gif-top { display: flex; gap: 6px; overflow-x: auto; margin: 0 4px 10px; flex-shrink: 0; }
+
+  .gif-top button { flex-shrink: 0; width: 84px; }
+
+  .gif-grid {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    align-content: start;
+    padding: 0 4px 8px;
+  }
+
+  .gif-grid button,
+  .gif-top button {
+    border: none;
+    background: none;
+    padding: 0;
+    cursor: pointer;
+    text-align: center;
+    font-family: inherit;
+  }
+
+  .gif-grid img,
+  .gif-top img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+    border-radius: 8px;
+    background: #000;
+  }
+
+  .gif-grid span,
+  .gif-top span {
+    display: block;
+    font-size: 11px;
+    color: var(--text-soft);
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .gif-empty { grid-column: 1 / -1; text-align: center; color: var(--text-soft); font-size: 13px; padding: 20px; }
+
+  .gif-credit {
+    font-size: 10px;
+    color: var(--text-soft);
+    text-align: center;
+    padding: 6px 8px calc(8px + env(safe-area-inset-bottom));
+  }
+
   /* Panneau « tous les emojis » */
   .emoji-sheet-backdrop {
     position: fixed;
@@ -1373,6 +1455,17 @@
   <button class="more" id="emoji-more" aria-label="Plus d'emojis">+</button>
 </div>
 
+<div id="gif-sheet-backdrop" class="emoji-sheet-backdrop hidden"></div>
+<div id="gif-sheet" class="emoji-sheet hidden">
+  <input id="gif-search" class="gif-search" type="search" placeholder="Rechercher un GIF" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="search">
+  <div id="gif-top-wrap" class="hidden">
+    <div class="emoji-sheet-label">Les plus utilisés</div>
+    <div class="gif-top" id="gif-top"></div>
+  </div>
+  <div class="gif-grid" id="gif-grid"></div>
+  <div class="gif-credit">Extraits de films muets du domaine public : Buster Keaton, Harold Lloyd, Max Linder, Georges Méliès, Segundo de Chomón, Annabelle Moore.</div>
+</div>
+
 <div id="emoji-sheet-backdrop" class="emoji-sheet-backdrop hidden"></div>
 <div id="emoji-sheet" class="emoji-sheet hidden">
   <div id="emoji-top-wrap" class="hidden">
@@ -1508,6 +1601,7 @@
     <div class="attach-menu" id="attach-menu">
       <button type="button" id="attach-photo">📷 Photo</button>
       <button type="button" id="attach-gallery">🖼️ Galerie</button>
+      <button type="button" id="attach-gif">🎞️ GIF</button>
       <button type="button" id="attach-voice">🎤 Message vocal</button>
     </div>
     <input type="file" id="photo-file" accept="image/*" hidden>
@@ -2026,6 +2120,46 @@ function suitLeClavier() {
   }, 150);
 }
 
+/* ---------- Banque de GIF (films muets du domaine public) ---------- */
+
+// Chaque extrait est un fichier gifs/<id>.webp hébergé avec l'app.
+const GIFS = [
+  { id: "calin", t: "Câlin", k: ["câlin", "amour", "serrer", "tendresse", "bras"] },
+  { id: "main", t: "Je te prends la main", k: ["main", "timide", "amour", "tendresse", "rougir"] },
+  { id: "bisou", t: "Bisou", k: ["bisou", "baiser", "amour", "embrasser", "smack"] },
+  { id: "reconfort", t: "Réconfort", k: ["réconfort", "câlin", "soutien", "ensemble", "consoler"] },
+  { id: "mdr", t: "Mort de rire", k: ["rire", "mdr", "lol", "drôle", "marrant"] },
+  { id: "hilare", t: "Hilare", k: ["rire", "mdr", "lol", "hilare", "drôle"] },
+  { id: "cestoi", t: "Mdr c'est toi", k: ["rire", "moquer", "toi", "mdr", "pointer"] },
+  { id: "panique", t: "Oh non !", k: ["panique", "oh", "non", "peur", "stress", "horreur"] },
+  { id: "sansvoix", t: "Sans voix", k: ["choqué", "sans", "voix", "bouche", "bée", "rien", "à", "dire"] },
+  { id: "pasdephoto", t: "Pas de photo !", k: ["photo", "gêne", "pudeur", "non", "stop"] },
+  { id: "surveille", t: "Je te juge", k: ["juger", "regarder", "sceptique", "hmm", "méfiance"] },
+  { id: "bof", t: "Bof", k: ["bof", "pluie", "indifférent", "tant", "pis", "haussement"] },
+  { id: "ennui", t: "Je m'ennuie", k: ["ennui", "attendre", "mal", "de", "dents", "fatigué", "long"] },
+  { id: "ramper", t: "Je rampe", k: ["fatigué", "épuisé", "ramper", "crevé", "ko"] },
+  { id: "zut", t: "Zut !", k: ["oublier", "zut", "oups", "réfléchir", "mince"] },
+  { id: "envers", t: "La tête à l'envers", k: ["envers", "perdu", "confus", "bizarre"] },
+  { id: "catastrophe", t: "Catastrophe", k: ["catastrophe", "raté", "chaos", "oups", "piano"] },
+  { id: "badaboum", t: "Badaboum", k: ["tomber", "chute", "maladroit", "aïe"] },
+  { id: "tempete", t: "C'est le chaos", k: ["chaos", "tempête", "bazar", "vent", "panique"] },
+  { id: "coince", t: "Pris au piège", k: ["coincé", "piège", "lasso", "attrapé"] },
+  { id: "accroche", t: "Je m'accroche", k: ["tenir", "bon", "courage", "retard", "horloge", "accroché"] },
+  { id: "zen", t: "Même pas peur", k: ["zen", "calme", "imperturbable", "cool", "sang-froid"] },
+  { id: "jarrive", t: "J'arrive !", k: ["arriver", "courir", "vite", "retard"] },
+  { id: "debarque", t: "Je débarque", k: ["arriver", "porter", "lourd", "bagages", "déménager"] },
+  { id: "potasse", t: "Je potasse", k: ["lire", "étudier", "réviser", "livre", "travail"] },
+  { id: "musique", t: "Musique", k: ["musique", "violoncelle", "concert", "chanson"] },
+  { id: "danse", t: "Danse", k: ["danse", "danser", "fête", "joie", "youpi"] },
+  { id: "tourbillon", t: "Tourbillon", k: ["tourner", "vertige", "folie", "danse", "rouge"] },
+  { id: "papillon", t: "Papillon", k: ["papillon", "légère", "joie", "voler", "couleurs"] },
+  { id: "fete", t: "C'est la fête", k: ["fête", "célébrer", "bravo", "danse", "couleurs"] },
+  { id: "jackpot", t: "Jackpot", k: ["argent", "sous", "riche", "paie", "salaire", "jackpot"] },
+  { id: "boum", t: "Boum !", k: ["explosion", "boum", "choc", "colère", "wow"] },
+  { id: "enfeu", t: "Je suis en feu", k: ["feu", "chaud", "motivé", "colère", "flamme"] }
+];
+const GIFS_BY_ID = Object.fromEntries(GIFS.map(g => [g.id, g]));
+
 function setupThread() {
   // Chemin distinct du jour : le fil est commun à toute la durée
   const msgsRef = db.ref(`${SECRET_PATH}/messages`);
@@ -2101,6 +2235,7 @@ function setupThread() {
   function excerpt(m) {
     if (m.ph) return "📷 Photo";
     if (m.vo) return "🎤 Message vocal";
+    if (m.gif) return "🎞️ GIF";
     return m.t.length > 80 ? m.t.slice(0, 79) + "…" : m.t;
   }
 
@@ -2149,7 +2284,7 @@ function setupThread() {
 
   function canEdit(el) {
     const m = el && el.m;
-    return !!m && m.u === ME && !m.ph && !m.vo && !m.ed && !!m.ts
+    return !!m && m.u === ME && !m.ph && !m.vo && !m.gif && !m.ed && !!m.ts
       && Date.now() + serverOffset - m.ts < DELAI_CORRECTION;
   }
 
@@ -2531,7 +2666,18 @@ function setupThread() {
         });
         bubble.appendChild(quote);
       }
-      if (!m.vo) {
+      if (m.gif) {
+        bubble.classList.add("gif");
+        if (GIFS_BY_ID[m.gif]) {
+          const img = document.createElement("img");
+          img.className = "msg-gif";
+          img.src = `gifs/${m.gif}.webp`;
+          img.alt = GIFS_BY_ID[m.gif].t;
+          bubble.appendChild(img);
+        } else {
+          bubble.appendChild(document.createTextNode("🎞️ GIF indisponible"));
+        }
+      } else if (!m.vo) {
         textNode = document.createTextNode(m.t);
         bubble.appendChild(textNode);
       }
@@ -2550,7 +2696,7 @@ function setupThread() {
     list.appendChild(reactions);
     list.appendChild(time);
 
-    nodes[snap.key] = { bubble, reactions, time, textNode, m: { u: m.u, t: m.t, ph: m.ph, vo: m.vo, ts: m.ts, ed: m.ed } };
+    nodes[snap.key] = { bubble, reactions, time, textNode, m: { u: m.u, t: m.t, ph: m.ph, vo: m.vo, gif: m.gif, ts: m.ts, ed: m.ed } };
     if (m.ed) renderEdited(snap.key, m);
     if (m.vo) renderVoice(snap.key, m);
     if (m.ph) {
@@ -2978,6 +3124,109 @@ function setupThread() {
   document.getElementById("attach-gallery").addEventListener("click", () => {
     closeAttachMenu();
     photoFile.click();
+  });
+
+  /* --- GIF ---
+     Banque locale (dossier gifs/, liste GIFS) : aucun service externe.
+     « Les plus utilisés » est compté sur l'appareil. */
+
+  const gifSheet = document.getElementById("gif-sheet");
+  const gifBackdrop = document.getElementById("gif-sheet-backdrop");
+  const gifSearch = document.getElementById("gif-search");
+  const gifGrid = document.getElementById("gif-grid");
+  const gifTopWrap = document.getElementById("gif-top-wrap");
+  const gifTop = document.getElementById("gif-top");
+  const sansAccent = str => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+  function gifCounts() {
+    try { return JSON.parse(localStorage.getItem("gif_counts") || "{}"); }
+    catch (e) { return {}; }
+  }
+
+  function gifButton(g) {
+    const b = document.createElement("button");
+    b.type = "button";
+    const img = document.createElement("img");
+    img.src = `gifs/${g.id}.webp`;
+    img.alt = g.t;
+    img.loading = "lazy";
+    const label = document.createElement("span");
+    label.textContent = g.t;
+    b.append(img, label);
+    b.addEventListener("click", () => sendGif(g.id));
+    return b;
+  }
+
+  function renderGifs() {
+    const q = sansAccent(gifSearch.value.trim());
+    const list = q
+      ? GIFS.filter(g => sansAccent([g.t, ...g.k].join(" ")).split(/[\s'’]+/).some(w => w.startsWith(q))
+          || sansAccent(g.t).includes(q))
+      : GIFS;
+    gifGrid.replaceChildren(...list.map(gifButton));
+    if (!list.length) {
+      const empty = document.createElement("div");
+      empty.className = "gif-empty";
+      empty.textContent = "Aucun GIF pour cette recherche.";
+      gifGrid.appendChild(empty);
+    }
+    // Les plus utilisés : masqués pendant une recherche
+    const counts = gifCounts();
+    const top = Object.keys(counts).filter(id => GIFS_BY_ID[id])
+      .sort((a, b) => counts[b] - counts[a]).slice(0, 8);
+    gifTop.replaceChildren(...top.map(id => gifButton(GIFS_BY_ID[id])));
+    gifTopWrap.classList.toggle("hidden", !!q || !top.length);
+  }
+
+  function placeGifSheet() {
+    if (gifSheet.classList.contains("hidden")) return;
+    const vv = window.visualViewport;
+    const h = vv ? vv.height : window.innerHeight;
+    const top = vv ? vv.offsetTop : 0;
+    gifSheet.style.top = (top + h * 0.25) + "px";
+    gifSheet.style.height = (h * 0.75) + "px";
+  }
+
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener("resize", placeGifSheet);
+    window.visualViewport.addEventListener("scroll", placeGifSheet);
+  }
+
+  function openGifSheet() {
+    gifSearch.value = "";
+    renderGifs();
+    gifGrid.scrollTop = 0;
+    gifBackdrop.classList.remove("hidden");
+    gifSheet.classList.remove("hidden");
+    placeGifSheet();
+  }
+
+  function closeGifSheet() {
+    gifSearch.blur();
+    gifSheet.classList.add("hidden");
+    gifBackdrop.classList.add("hidden");
+  }
+
+  function sendGif(id) {
+    closeGifSheet();
+    const counts = gifCounts();
+    counts[id] = (counts[id] || 0) + 1;
+    try { localStorage.setItem("gif_counts", JSON.stringify(counts)); } catch (e) { /* facultatif */ }
+    const msg = { u: ME, t: "🎞️ GIF", gif: id, ts: firebase.database.ServerValue.TIMESTAMP };
+    const re = takeReply();
+    if (re) msg.re = re;
+    msgsRef.push(msg).catch(err => setPhotoStatus("GIF non envoyé : " + err.message, true));
+  }
+
+  gifSearch.addEventListener("input", renderGifs);
+  gifSearch.addEventListener("focus", () => [0, 150, 350, 600, 900].forEach(d => setTimeout(placeGifSheet, d)));
+  gifSearch.addEventListener("blur", () => [0, 150, 350, 600, 900].forEach(d => setTimeout(placeGifSheet, d)));
+  gifSheet.addEventListener("click", e => e.stopPropagation());
+  gifBackdrop.addEventListener("click", e => { e.stopPropagation(); closeGifSheet(); });
+
+  document.getElementById("attach-gif").addEventListener("click", () => {
+    closeAttachMenu();
+    openGifSheet();
   });
 
   document.getElementById("attach-voice").addEventListener("click", () => {
