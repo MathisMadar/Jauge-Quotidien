@@ -835,15 +835,20 @@
     user-select: none;
   }
 
+  /* L'image entière, au format du capteur (4:3), entre les deux barres :
+     bandes noires en haut et en bas plutôt qu'un recadrage qui zoome */
   .cam video,
   .cam canvas {
     position: absolute;
-    inset: 0;
+    left: 0;
+    right: 0;
+    top: calc(64px + env(safe-area-inset-top));
+    bottom: calc(130px + env(safe-area-inset-bottom));
     width: 100%;
-    height: 100%;
+    height: calc(100% - 194px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
   }
 
-  .cam video { object-fit: cover; }
+  .cam video { object-fit: contain; }
 
   .cam video.mirror { transform: scaleX(-1); }
 
@@ -928,7 +933,7 @@
     position: absolute;
     left: 0;
     right: 0;
-    bottom: calc(104px + env(safe-area-inset-bottom));
+    bottom: calc(138px + env(safe-area-inset-bottom));
     text-align: center;
     color: rgba(255,255,255,0.75);
     font-size: 13px;
@@ -970,7 +975,8 @@
     position: absolute;
     left: 0;
     right: 0;
-    top: 50%;
+    /* centre de la zone de la photo, entre les deux barres */
+    top: calc(50% + (64px + env(safe-area-inset-top) - 130px - env(safe-area-inset-bottom)) / 2);
     transform: translateY(-50%);
     display: flex;
     justify-content: center;
@@ -2708,7 +2714,8 @@ function setupThread() {
       return;
     }
     navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: camFacing }, width: { ideal: 1920 }, height: { ideal: 1920 } },
+      // 4:3 = format natif du capteur ; un autre format est un recadrage
+      video: { facingMode: { ideal: camFacing }, width: { ideal: 1920 }, height: { ideal: 1440 } },
       audio: false
     }).then(stream => {
       if (cam.classList.contains("hidden")) { stream.getTracks().forEach(t => t.stop()); return; }
@@ -2776,22 +2783,18 @@ function setupThread() {
     if (withText) drawPhotoText(ctx, camBase.width, camBase.height, camText);
   }
 
-  // Capture du cadre affiché (la vidéo est rognée pour remplir l'écran)
+  // Capture de l'image entière, telle qu'affichée (sans recadrage)
   function captureFrame() {
     const vw = camVideo.videoWidth;
     const vh = camVideo.videoHeight;
     if (!vw || !vh) return null;
-    const screenRatio = cam.clientWidth / cam.clientHeight;
-    let cw = vw, ch = vh;
-    if (vw / vh > screenRatio) cw = vh * screenRatio;
-    else ch = vw / screenRatio;
-    const r = Math.min(1, 1280 / Math.max(cw, ch));
+    const r = Math.min(1, 1280 / Math.max(vw, vh));
     const canvas = document.createElement("canvas");
-    canvas.width = Math.round(cw * r);
-    canvas.height = Math.round(ch * r);
+    canvas.width = Math.round(vw * r);
+    canvas.height = Math.round(vh * r);
     const ctx = canvas.getContext("2d");
     if (camFacing === "user") { ctx.translate(canvas.width, 0); ctx.scale(-1, 1); }
-    ctx.drawImage(camVideo, (vw - cw) / 2, (vh - ch) / 2, cw, ch, 0, 0, canvas.width, canvas.height);
+    ctx.drawImage(camVideo, 0, 0, canvas.width, canvas.height);
     return canvas;
   }
 
