@@ -2122,7 +2122,9 @@ function suitLeClavier() {
 
 /* ---------- Banque de GIF (films muets du domaine public) ---------- */
 
-// Chaque extrait est un fichier gifs/<id>.webp hébergé avec l'app.
+// Chaque extrait est un fichier gifs/<id>.webp hébergé avec l'app, qui joue
+// 7 fois puis s'arrête (dans la discussion). Le panneau de choix utilise
+// gifs/boucle/<id>.webp, le même fichier en boucle infinie.
 const GIFS = [
   { id: "calin", t: "Câlin", k: ["câlin", "amour", "serrer", "tendresse", "bras"] },
   { id: "main", t: "Je te prends la main", k: ["main", "timide", "amour", "tendresse", "rougir"] },
@@ -2150,6 +2152,9 @@ const GIFS = [
   { id: "debarque", t: "Je débarque", k: ["arriver", "porter", "lourd", "bagages", "déménager"] },
   { id: "potasse", t: "Je potasse", k: ["lire", "étudier", "réviser", "livre", "travail"] },
   { id: "musique", t: "Musique", k: ["musique", "violoncelle", "concert", "chanson"] },
+  { id: "reussi", t: "J'ai réussi !", k: ["réussite", "réussi", "victoire", "yes", "enfin", "gagné", "bravo", "fier"] },
+  { id: "felicitations", t: "Félicitations", k: ["félicitations", "bravo", "mariage", "fête", "célébrer", "champagne"] },
+  { id: "ondanse", t: "On danse", k: ["danse", "danser", "fête", "youpi", "ensemble", "célébrer"] },
   { id: "danse", t: "Danse", k: ["danse", "danser", "fête", "joie", "youpi"] },
   { id: "tourbillon", t: "Tourbillon", k: ["tourner", "vertige", "folie", "danse", "rouge"] },
   { id: "papillon", t: "Papillon", k: ["papillon", "légère", "joie", "voler", "couleurs"] },
@@ -3147,7 +3152,7 @@ function setupThread() {
     const b = document.createElement("button");
     b.type = "button";
     const img = document.createElement("img");
-    img.src = `gifs/${g.id}.webp`;
+    img.src = `gifs/boucle/${g.id}.webp`;
     img.alt = g.t;
     img.loading = "lazy";
     const label = document.createElement("span");
