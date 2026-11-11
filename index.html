@@ -1356,16 +1356,20 @@
 
   /* Clavier ouvert : marges réduites au minimum pour coller à la barre */
   body.vue-discussion.saisie { padding-top: 17px; padding-bottom: 2px; }
-  body.vue-discussion.saisie #view-thread { padding-top: 12px; padding-bottom: 6px; }
+  body.vue-discussion.saisie #view-thread { padding-top: 11px; padding-bottom: 6px; }
   body.vue-discussion.saisie #thread-messages { margin-bottom: 4px; }
 
-  body.vue-discussion #view-thread { padding-bottom: 20px; }
+  body.vue-discussion #view-thread { padding-bottom: 12px; }
 
   /* Plus de largeur pour les messages, sans changer la taille du cadre */
   /* La question du jour : cadre plus haut, mais question près du bord haut */
   #view-today { padding-top: 24px; padding-bottom: 48px; }
 
-  #view-thread { padding-top: 12px; padding-left: 11px; padding-right: 11px; }
+  #view-thread { padding-top: 11px; padding-left: 11px; padding-right: 11px; }
+
+  /* Les messages qui défilent sont coupés selon la courbe du cadre :
+     rayon intérieur = rayon du cadre - épaisseur de la bande (11 px) */
+  #thread-messages { border-radius: calc(var(--radius) - 11px) calc(var(--radius) - 11px) 0 0; }
 
   body.vue-discussion .app {
     display: flex;
