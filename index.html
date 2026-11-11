@@ -2103,7 +2103,9 @@ function ajusteVueDiscussion() {
   }
   const vv = window.visualViewport;
   const hauteur = Math.round(vv ? vv.height : window.innerHeight);
-  if (window.scrollY !== 0) window.scrollTo(0, 0);
+  // À l'ouverture du clavier, iOS décale la page vers le haut : on la
+  // remet toujours en place (sans ça, la saisie reste au-dessus du clavier)
+  window.scrollTo(0, 0);
   if (hauteur === derniereHauteur) return;
   derniereHauteur = hauteur;
 
@@ -2140,6 +2142,10 @@ window.addEventListener("orientationchange", () => setTimeout(ajusteVueDiscussio
 // mode installé : on relance nous-mêmes l'ajustement pendant l'ouverture
 // et la fermeture du clavier.
 let surveillance = null;
+function ajustementComplet() {
+  derniereHauteur = null;
+  ajusteVueDiscussion();
+}
 function suitLeClavier() {
   clearInterval(surveillance);
   [0, 60, 120, 200, 300, 450, 650, 900].forEach(d => setTimeout(ajusteVueDiscussion, d));
@@ -2148,6 +2154,9 @@ function suitLeClavier() {
     ajusteVueDiscussion();
     if (--reste <= 0) clearInterval(surveillance);
   }, 150);
+  // Une fois l'animation du clavier terminée : un ajustement complet, même
+  // si la hauteur semble inchangée
+  [450, 1300].forEach(d => setTimeout(ajustementComplet, d));
 }
 
 /* ---------- Banque de GIF (films muets du domaine public) ---------- */
