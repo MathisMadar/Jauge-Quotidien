@@ -1908,6 +1908,7 @@ function selectTab(activeTab) {
   });
   // La mise en page fixe ne vaut que pour l'onglet Discussion
   document.body.classList.toggle("vue-discussion", activeTab === tabThread);
+  derniereHauteur = null;
   ajusteVueDiscussion();
 }
 
@@ -2087,29 +2088,51 @@ function registerToken() {
 // La hauteur suit la zone réellement visible. Pas de seuil, pas de
 // détection du clavier : quand il s'ouvre, la zone rétrécit et la vue
 // se réajuste d'elle-même, sans changer de mise en page.
+// N'agit que si la zone visible a vraiment changé de taille : pendant la
+// saisie, iOS envoie beaucoup d'événements sans changement réel, et chaque
+// ajustement inutile recalculait tout le fil. Le fil ne revient en bas que
+// si on y était déjà.
+let derniereHauteur = null;
 function ajusteVueDiscussion() {
   const actif = document.body.classList.contains("vue-discussion");
   if (!actif) {
+    derniereHauteur = null;
     document.body.style.height = "";
     document.body.classList.remove("saisie");
     return;
   }
   const vv = window.visualViewport;
-  document.body.style.height = (vv ? vv.height : window.innerHeight) + "px";
+  const hauteur = Math.round(vv ? vv.height : window.innerHeight);
+  if (window.scrollY !== 0) window.scrollTo(0, 0);
+  if (hauteur === derniereHauteur) return;
+  derniereHauteur = hauteur;
 
+  const list = document.getElementById("thread-messages");
+  const enBas = !list || list.scrollHeight - list.scrollTop - list.clientHeight < 80;
+
+  document.body.style.height = hauteur + "px";
   // Clavier ouvert : on ne change pas de mise en page, on masque
   // seulement l'en-tête pour agrandir la conversation.
   const clavier = vv ? vv.height < window.innerHeight - 100 : false;
   document.body.classList.toggle("saisie", clavier);
 
-  window.scrollTo(0, 0);
-  const list = document.getElementById("thread-messages");
-  if (list) list.scrollTop = list.scrollHeight;
+  if (list && enBas) list.scrollTop = list.scrollHeight;
+}
+
+// Les événements arrivent en rafale : un seul ajustement par image
+let ajustementPrevu = false;
+function ajusteBientot() {
+  if (ajustementPrevu) return;
+  ajustementPrevu = true;
+  requestAnimationFrame(() => {
+    ajustementPrevu = false;
+    ajusteVueDiscussion();
+  });
 }
 
 if (window.visualViewport) {
-  window.visualViewport.addEventListener("resize", ajusteVueDiscussion);
-  window.visualViewport.addEventListener("scroll", ajusteVueDiscussion);
+  window.visualViewport.addEventListener("resize", ajusteBientot);
+  window.visualViewport.addEventListener("scroll", ajusteBientot);
 }
 window.addEventListener("orientationchange", () => setTimeout(ajusteVueDiscussion, 200));
 
@@ -2352,7 +2375,11 @@ function setupThread() {
   }
 
   // Toucher une citation ramène au message d'origine, mis en évidence
-  function showOriginal(msgKey) {
+  async function showOriginal(msgKey) {
+    // Message plus ancien que ceux affichés : on charge jusqu'à lui
+    for (let i = 0; i < 30 && !nodes[msgKey] && !toutCharge; i++) {
+      await chargePlusAnciens();
+    }
     const el = nodes[msgKey];
     if (!el) return;
     const b = el.bubble.getBoundingClientRect();
@@ -2645,21 +2672,30 @@ function setupThread() {
 
   /* --- Arrivée des messages --- */
 
-  msgsRef.on("child_added", snap => {
-    const m = snap.val();
-    if (!m || !m.t) return;
-    empty.style.display = "none";
+  /* --- Affichage des messages ---
+     Seuls les 70 derniers messages sont chargés à l'ouverture ; les plus
+     anciens arrivent par paquets de 70 quand on remonte en haut du fil. */
 
+  const PAQUET = 70;
+  let oldestKey = null;   // plus ancien message affiché
+  let toutCharge = false; // plus rien d'ancien à charger
+  let chargement = null;  // chargement d'anciens messages en cours
+
+  function dayLabel(m) {
     const d = m.ts ? new Date(m.ts) : new Date();
-    const label = d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
-    if (label !== lastDayLabel) {
-      lastDayLabel = label;
-      const sep = document.createElement("div");
-      sep.className = "day-separator";
-      sep.textContent = label;
-      list.appendChild(sep);
-    }
+    return d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+  }
 
+  function makeSeparator(label) {
+    const sep = document.createElement("div");
+    sep.className = "day-separator";
+    sep.textContent = label;
+    return sep;
+  }
+
+  // Construit les éléments d'un message ; la page les insère où il faut
+  function buildMessage(key, m) {
+    const d = m.ts ? new Date(m.ts) : new Date();
     const side = m.u === ME ? "mine" : "theirs";
 
     const bubble = document.createElement("div");
@@ -2704,40 +2740,112 @@ function setupThread() {
       ? d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })
       : "";
 
-    list.appendChild(bubble);
-    list.appendChild(reactions);
-    list.appendChild(time);
-
-    nodes[snap.key] = { bubble, reactions, time, textNode, m: { u: m.u, t: m.t, ph: m.ph, vo: m.vo, gif: m.gif, ts: m.ts, ed: m.ed } };
-    if (m.ed) renderEdited(snap.key, m);
-    if (m.vo) renderVoice(snap.key, m);
+    nodes[key] = { bubble, reactions, time, textNode, m: { u: m.u, t: m.t, ph: m.ph, vo: m.vo, gif: m.gif, ts: m.ts, ed: m.ed } };
+    if (m.ed) renderEdited(key, m);
+    if (m.vo) renderVoice(key, m);
     if (m.ph) {
-      renderPhoto(snap.key, m);
-      wireBubble(bubble, snap.key, time, () => {
-        if (bubble.classList.contains("openable")) openPhoto(snap.key);
+      renderPhoto(key, m);
+      wireBubble(bubble, key, time, () => {
+        if (bubble.classList.contains("openable")) openPhoto(key);
         else time.classList.toggle("visible");
       });
     } else {
-      wireBubble(bubble, snap.key, time);
+      wireBubble(bubble, key, time);
     }
-    renderReactions(snap.key, m.r);
+    renderReactions(key, m.r);
+    return [bubble, reactions, time];
+  }
 
-    list.scrollTop = list.scrollHeight;
+  // Un seul défilement par image, quelle que soit la quantité de messages
+  let defilementPrevu = false;
+  function defileEnBas() {
+    if (defilementPrevu) return;
+    defilementPrevu = true;
+    requestAnimationFrame(() => {
+      defilementPrevu = false;
+      list.scrollTop = list.scrollHeight;
+    });
+  }
+
+  function onChanged(snap) {
+    const m = snap.val();
+    if (!m || !nodes[snap.key]) return;
+    renderReactions(snap.key, m.r);
+    if (m.ph) renderPhoto(snap.key, m);
+    if (m.vo && m.ex) renderVoice(snap.key, m);
+    nodes[snap.key].m.ts = m.ts;
+    if (m.ed) renderEdited(snap.key, m);
+  }
+
+  // Messages récents, puis tous les nouveaux
+  const recentRef = msgsRef.limitToLast(PAQUET);
+  recentRef.on("child_added", snap => {
+    const m = snap.val();
+    if (!m || !m.t || nodes[snap.key]) return;
+    empty.style.display = "none";
+    if (oldestKey === null || snap.key < oldestKey) oldestKey = snap.key;
+    const enBas = list.scrollHeight - list.scrollTop - list.clientHeight < 80;
+
+    const label = dayLabel(m);
+    if (label !== lastDayLabel) {
+      lastDayLabel = label;
+      list.appendChild(makeSeparator(label));
+    }
+    buildMessage(snap.key, m).forEach(el => list.appendChild(el));
+
+    // On reste en bas si on y était, et toujours pour ses propres messages
+    if (enBas || m.u === ME) defileEnBas();
   }, err => {
     showError("Lecture des messages refusée : " + err.message);
   });
 
   // Une réaction ajoutée après coup met à jour la bulle existante,
-  // de même qu'une photo ouverte ou expirée
-  msgsRef.on("child_changed", snap => {
-    const m = snap.val();
-    if (!m) return;
-    renderReactions(snap.key, m.r);
-    if (m.ph) renderPhoto(snap.key, m);
-    if (m.vo && m.ex) renderVoice(snap.key, m);
-    if (nodes[snap.key]) nodes[snap.key].m.ts = m.ts;
-    if (m.ed) renderEdited(snap.key, m);
-  });
+  // de même qu'une photo ouverte ou expirée, ou un message corrigé
+  recentRef.on("child_changed", onChanged);
+
+  // Messages plus anciens, ajoutés au-dessus sans faire sauter la vue
+  function chargePlusAnciens() {
+    if (chargement || toutCharge || oldestKey === null) return chargement || Promise.resolve();
+    const avant = oldestKey;
+    chargement = msgsRef.orderByKey().endBefore(avant).limitToLast(PAQUET).once("value")
+      .then(snap => {
+        const batch = [];
+        snap.forEach(c => { batch.push([c.key, c.val()]); });
+        if (batch.length < PAQUET) toutCharge = true;
+        if (!batch.length) return;
+
+        const frag = document.createDocumentFragment();
+        let label = null;
+        batch.forEach(([key, m]) => {
+          if (!m || !m.t || nodes[key]) return;
+          const l = dayLabel(m);
+          if (l !== label) { label = l; frag.appendChild(makeSeparator(l)); }
+          buildMessage(key, m).forEach(el => frag.appendChild(el));
+        });
+        // Hauteur mesurée avant tout changement, pour garder la vue en place
+        const hauteurAvant = list.scrollHeight;
+        // Même jour de part et d'autre : un seul séparateur
+        const spacer = list.querySelector(".thread-spacer");
+        const premier = spacer.nextElementSibling;
+        if (premier && premier.classList.contains("day-separator") && premier.textContent === label) {
+          premier.remove();
+        }
+        spacer.after(frag);
+        list.scrollTop += list.scrollHeight - hauteurAvant;
+        oldestKey = batch[0][0];
+
+        // Réactions et corrections sur ces anciens messages
+        msgsRef.orderByKey().startAt(batch[0][0]).endAt(batch[batch.length - 1][0])
+          .on("child_changed", onChanged);
+      })
+      .catch(err => showError("Anciens messages non chargés : " + err.message))
+      .finally(() => { chargement = null; });
+    return chargement;
+  }
+
+  list.addEventListener("scroll", () => {
+    if (list.scrollTop < 120) chargePlusAnciens();
+  }, { passive: true });
 
   /* --- Photos éphémères ---
      La photo est rangée à part (photos/<clé du message>) pour que le fil
