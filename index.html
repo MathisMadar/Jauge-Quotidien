@@ -1355,7 +1355,7 @@
   body.saisie nav.tabs { display: none; }
 
   /* Clavier ouvert : marges réduites au minimum pour coller à la barre */
-  body.vue-discussion.saisie { padding-top: 17px; padding-bottom: 2px; }
+  body.vue-discussion.saisie { padding-top: 17px; padding-bottom: 0; }
   body.vue-discussion.saisie #view-thread { padding-top: 11px; padding-bottom: 6px; }
   body.vue-discussion.saisie #thread-messages { margin-bottom: 4px; }
 
@@ -1363,7 +1363,7 @@
 
   /* Plus de largeur pour les messages, sans changer la taille du cadre */
   /* La question du jour : cadre plus haut, mais question près du bord haut */
-  #view-today { padding-top: 24px; padding-bottom: 48px; }
+  #view-today { padding-top: 24px; padding-bottom: 38px; }
 
   #view-thread { padding-top: 11px; padding-left: 11px; padding-right: 11px; }
 
@@ -1499,7 +1499,7 @@
   <section id="view-today" class="card">
     <p class="question" id="question-text"></p>
 
-    <div id="answer-zone">
+    <div id="answer-zone" style="padding-top:4px;">
       <div class="value-row">
         <button class="step-btn" id="step-down" aria-label="Diminuer">&minus;</button>
         <div class="value-display" id="slider-value">&nbsp;</div>
@@ -1512,7 +1512,7 @@
           <span>10</span>
         </div>
       </div>
-      <button class="primary" id="submit-btn" style="margin-top:20px;">Valider</button>
+      <button class="primary" id="submit-btn" style="margin-top:22px;">Valider</button>
     </div>
 
     <div id="confirm-zone" class="confirm-zone">
