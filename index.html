@@ -582,6 +582,32 @@
     text-overflow: ellipsis;
   }
 
+  .gif-section {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-soft);
+    margin: 4px 2px 0;
+  }
+
+  .gif-section button {
+    border: 1px solid var(--line);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 12px;
+    font-family: inherit;
+    padding: 5px 10px;
+    border-radius: 14px;
+    cursor: pointer;
+  }
+
+  .gif-status { grid-column: 1 / -1; font-size: 12px; color: var(--text-soft); margin: 0 2px; }
+
+  .gif-status.error { color: #8C2F1D; }
+
   .gif-empty { grid-column: 1 / -1; text-align: center; color: var(--text-soft); font-size: 13px; padding: 20px; }
 
   .gif-credit {
@@ -1463,6 +1489,7 @@
 </div>
 
 <div id="gif-sheet-backdrop" class="emoji-sheet-backdrop hidden"></div>
+<input type="file" id="nosgifs-file" accept="image/gif" multiple hidden>
 <div id="gif-sheet" class="emoji-sheet hidden">
   <input id="gif-search" class="gif-search" type="search" placeholder="Rechercher un GIF" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="search">
   <div id="gif-top-wrap" class="hidden">
@@ -1470,7 +1497,7 @@
     <div class="gif-top" id="gif-top"></div>
   </div>
   <div class="gif-grid" id="gif-grid"></div>
-  <div class="gif-credit">Extraits de films muets du domaine public : Buster Keaton, Harold Lloyd, Max Linder, Georges Méliès, Segundo de Chomón, Annabelle Moore.</div>
+  <div class="gif-credit">« Nos GIF » sont privés, rangés dans votre base. Films muets du domaine public : Buster Keaton, Harold Lloyd, Max Linder, Georges Méliès, Segundo de Chomón, Annabelle Moore.</div>
 </div>
 
 <div id="emoji-sheet-backdrop" class="emoji-sheet-backdrop hidden"></div>
@@ -2732,7 +2759,16 @@ function setupThread() {
       }
       if (m.gif) {
         bubble.classList.add("gif");
-        if (GIFS_BY_ID[m.gif]) {
+        if (m.gif.startsWith("n:")) {
+          // GIF de « Nos GIF » : chargé depuis la base, 7 lectures
+          const img = document.createElement("img");
+          img.className = "msg-gif";
+          img.alt = "GIF";
+          bubble.appendChild(img);
+          nosGifUrl(m.gif.slice(2), 7)
+            .then(url => { img.src = url; })
+            .catch(() => { img.replaceWith(document.createTextNode("🎞️ GIF indisponible")); });
+        } else if (GIFS_BY_ID[m.gif]) {
           const img = document.createElement("img");
           img.className = "msg-gif";
           img.src = `gifs/${m.gif}.webp`;
@@ -3279,40 +3315,208 @@ function setupThread() {
     catch (e) { return {}; }
   }
 
+  /* « Nos GIF » : GIF ajoutés par vous deux, privés, rangés dans la base.
+     nosgifs/<id> = {t, by, ts} (liste légère) ; nosgifsdata/<id> = {d}
+     (le fichier). Chaque téléphone garde les fichiers en cache après le
+     premier affichage. Le nombre de lectures est réglé à l'affichage :
+     7 dans la discussion, en boucle dans le panneau. */
+
+  const nosGifsRef = db.ref(`${SECRET_PATH}/nosgifs`);
+  const nosGifsDataRef = db.ref(`${SECRET_PATH}/nosgifsdata`);
+  const nosGifsFile = document.getElementById("nosgifs-file");
+  let NOS_GIFS = []; // [{id, t, ts}]
+  const nosGifsUrls = new Map();
+  let nosGifsStatus = null; // {text, error}
+
+  nosGifsRef.on("value", snap => {
+    const v = snap.val() || {};
+    NOS_GIFS = Object.entries(v).map(([id, g]) => ({ id, t: g.t || "GIF", ts: g.ts || 0 }))
+      .sort((a, b) => b.ts - a.ts);
+    if (!gifSheet.classList.contains("hidden")) renderGifs();
+  });
+
+  // Fichier brut d'un GIF : cache de l'appareil, sinon la base
+  async function nosGifBytes(id) {
+    const cle = `/nos-gifs/${id}`;
+    let cache = null;
+    try { cache = await caches.open("nos-gifs"); } catch (e) { /* pas de cache */ }
+    if (cache) {
+      const hit = await cache.match(cle);
+      if (hit) return new Uint8Array(await hit.arrayBuffer());
+    }
+    const snap = await nosGifsDataRef.child(id).child("d").once("value");
+    const data = snap.val();
+    if (!data) throw new Error("GIF introuvable");
+    const bytes = new Uint8Array(await (await fetch(data)).arrayBuffer());
+    if (cache) cache.put(cle, new Response(bytes)).catch(() => {});
+    return bytes;
+  }
+
+  // Règle le nombre de lectures (0 = en boucle) dans un GIF ou un WebP
+  function avecLectures(src, lectures) {
+    const b = new Uint8Array(src);
+    const str = (i, n) => String.fromCharCode(...b.slice(i, i + n));
+    if (str(0, 4) === "RIFF" && str(8, 4) === "WEBP") {
+      for (let i = 12; i < b.length - 14; i++) {
+        if (str(i, 4) === "ANIM") { b[i + 12] = lectures & 255; b[i + 13] = lectures >> 8; break; }
+      }
+      return { bytes: b, type: "image/webp" };
+    }
+    // GIF : le bloc NETSCAPE compte les répétitions après la première lecture
+    const rep = Math.max(0, lectures - 1);
+    for (let i = 13; i < b.length - 16; i++) {
+      if (b[i] === 0x21 && b[i + 1] === 0xFF && str(i + 3, 11) === "NETSCAPE2.0") {
+        b[i + 16] = lectures === 0 ? 0 : rep & 255;
+        b[i + 17] = lectures === 0 ? 0 : rep >> 8;
+        return { bytes: b, type: "image/gif" };
+      }
+    }
+    // Pas de bloc de boucle (une seule lecture) : on l'insère après la palette
+    const gct = b[10] & 0x80 ? 3 * (1 << ((b[10] & 7) + 1)) : 0;
+    const at = 13 + gct;
+    const n = lectures === 0 ? 0 : rep;
+    const bloc = [0x21, 0xFF, 0x0B, ...[..."NETSCAPE2.0"].map(c => c.charCodeAt(0)), 0x03, 0x01, n & 255, n >> 8, 0x00];
+    const out = new Uint8Array(b.length + bloc.length);
+    out.set(b.slice(0, at), 0);
+    out.set(bloc, at);
+    out.set(b.slice(at), at + bloc.length);
+    return { bytes: out, type: "image/gif" };
+  }
+
+  function nosGifUrl(id, lectures) {
+    const cle = id + ":" + lectures;
+    if (!nosGifsUrls.has(cle)) {
+      nosGifsUrls.set(cle, nosGifBytes(id).then(bytes => {
+        const r = avecLectures(bytes, lectures);
+        return URL.createObjectURL(new Blob([r.bytes], { type: r.type }));
+      }).catch(err => { nosGifsUrls.delete(cle); throw err; }));
+    }
+    return nosGifsUrls.get(cle);
+  }
+
+  // Les vignettes ne se chargent qu'en apparaissant dans le panneau
+  const vignettes = "IntersectionObserver" in window
+    ? new IntersectionObserver(entries => entries.forEach(e => {
+        if (!e.isIntersecting) return;
+        vignettes.unobserve(e.target);
+        nosGifUrl(e.target.dataset.id, 0).then(url => { e.target.src = url; }).catch(() => {});
+      }), { root: gifGrid, rootMargin: "200px" })
+    : null;
+
   function gifButton(g) {
     const b = document.createElement("button");
     b.type = "button";
     const img = document.createElement("img");
-    img.src = `gifs/boucle/${g.id}.webp`;
     img.alt = g.t;
-    img.loading = "lazy";
+    if (g.nos) {
+      img.dataset.id = g.id;
+      if (vignettes) vignettes.observe(img);
+      else nosGifUrl(g.id, 0).then(url => { img.src = url; }).catch(() => {});
+    } else {
+      img.src = `gifs/boucle/${g.id}.webp`;
+      img.loading = "lazy";
+    }
     const label = document.createElement("span");
     label.textContent = g.t;
     b.append(img, label);
-    b.addEventListener("click", () => sendGif(g.id));
+    b.addEventListener("click", () => sendGif(g.nos ? "n:" + g.id : g.id));
     return b;
+  }
+
+  function section(titre, avecAjout) {
+    const div = document.createElement("div");
+    div.className = "gif-section";
+    const span = document.createElement("span");
+    span.textContent = titre;
+    div.appendChild(span);
+    if (avecAjout) {
+      const add = document.createElement("button");
+      add.type = "button";
+      add.textContent = "＋ Ajouter des GIF";
+      add.addEventListener("click", () => nosGifsFile.click());
+      div.appendChild(add);
+    }
+    return div;
+  }
+
+  function trouve(q, g) {
+    return sansAccent([g.t, ...(g.k || [])].join(" ")).split(/[\s'’]+/).some(w => w.startsWith(q))
+      || sansAccent(g.t).includes(q);
   }
 
   function renderGifs() {
     const q = sansAccent(gifSearch.value.trim());
-    const list = q
-      ? GIFS.filter(g => sansAccent([g.t, ...g.k].join(" ")).split(/[\s'’]+/).some(w => w.startsWith(q))
-          || sansAccent(g.t).includes(q))
-      : GIFS;
-    gifGrid.replaceChildren(...list.map(gifButton));
-    if (!list.length) {
+    const nos = NOS_GIFS.filter(g => !q || trouve(q, g)).map(g => ({ ...g, nos: true }));
+    const banque = q ? GIFS.filter(g => trouve(q, g)) : GIFS;
+    const items = [section("Nos GIF", true)];
+    if (nosGifsStatus) {
+      const st = document.createElement("div");
+      st.className = "gif-status" + (nosGifsStatus.error ? " error" : "");
+      st.textContent = nosGifsStatus.text;
+      items.push(st);
+    }
+    nos.forEach(g => items.push(gifButton(g)));
+    if (!nos.length && !q) {
+      const vide = document.createElement("div");
+      vide.className = "gif-status";
+      vide.textContent = "Aucun pour l'instant : ajoute des GIF depuis Fichiers.";
+      items.push(vide);
+    }
+    items.push(section("Films muets", false));
+    banque.forEach(g => items.push(gifButton(g)));
+    if (!nos.length && !banque.length) {
       const empty = document.createElement("div");
       empty.className = "gif-empty";
       empty.textContent = "Aucun GIF pour cette recherche.";
-      gifGrid.appendChild(empty);
+      items.push(empty);
     }
+    gifGrid.replaceChildren(...items);
+
     // Les plus utilisés : masqués pendant une recherche
     const counts = gifCounts();
-    const top = Object.keys(counts).filter(id => GIFS_BY_ID[id])
+    const nosParId = Object.fromEntries(NOS_GIFS.map(g => ["n:" + g.id, { ...g, nos: true }]));
+    const top = Object.keys(counts).filter(id => GIFS_BY_ID[id] || nosParId[id])
       .sort((a, b) => counts[b] - counts[a]).slice(0, 8);
-    gifTop.replaceChildren(...top.map(id => gifButton(GIFS_BY_ID[id])));
+    gifTop.replaceChildren(...top.map(id => gifButton(nosParId[id] || GIFS_BY_ID[id])));
     gifTopWrap.classList.toggle("hidden", !!q || !top.length);
   }
+
+  // Ajout depuis Fichiers (garde l'animation, contrairement à Photos)
+  nosGifsFile.addEventListener("change", async () => {
+    const files = [...(nosGifsFile.files || [])];
+    nosGifsFile.value = "";
+    if (!files.length) return;
+    let ok = 0;
+    const refus = [];
+    for (const [i, file] of files.entries()) {
+      nosGifsStatus = { text: `Ajout ${i + 1} sur ${files.length}…` };
+      renderGifs();
+      try {
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        if (String.fromCharCode(...bytes.slice(0, 4)) !== "GIF8") throw new Error("pas un GIF");
+        if (bytes.length > 8 * 1024 * 1024) throw new Error("plus de 8 Mo");
+        const data = await new Promise((resolve, reject) => {
+          const r = new FileReader();
+          r.onload = () => resolve(r.result);
+          r.onerror = () => reject(new Error("lecture impossible"));
+          r.readAsDataURL(new Blob([bytes], { type: "image/gif" }));
+        });
+        const id = nosGifsRef.push().key;
+        const titre = file.name.replace(/\.gif$/i, "").replace(/[_-]+/g, " ").trim() || "GIF";
+        // Le fichier d'abord : quand le titre apparaît, le GIF est là
+        await nosGifsDataRef.child(id).set({ d: data });
+        await nosGifsRef.child(id).set({ t: titre, by: ME, ts: firebase.database.ServerValue.TIMESTAMP });
+        ok++;
+      } catch (err) {
+        refus.push(`${file.name} (${err.message})`);
+      }
+    }
+    nosGifsStatus = refus.length
+      ? { text: `${ok} ajouté(s). Refusé(s) : ${refus.join(", ")}`, error: true }
+      : { text: `${ok} GIF ajouté(s).` };
+    renderGifs();
+    setTimeout(() => { nosGifsStatus = null; if (!gifSheet.classList.contains("hidden")) renderGifs(); }, 6000);
+  });
 
   function placeGifSheet() {
     if (gifSheet.classList.contains("hidden")) return;
