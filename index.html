@@ -2946,6 +2946,8 @@ function setupThread() {
         spacer.after(frag);
         list.scrollTop += list.scrollHeight - hauteurAvant;
         oldestKey = batch[0][0];
+        // Toujours près du haut (lancer rapide) : le paquet suivant
+        setTimeout(() => { if (!chargement) verifieHaut(); }, 100);
 
         // Réactions et corrections sur ces anciens messages
         msgsRef.orderByKey().startAt(batch[0][0]).endAt(batch[batch.length - 1][0])
@@ -2956,9 +2958,25 @@ function setupThread() {
     return chargement;
   }
 
+  // On charge bien avant d'arriver tout en haut : sur iPhone, une fois en
+  // butée, tirer encore ne produit plus d'événement de défilement
+  function verifieHaut() {
+    if (list.scrollTop < Math.max(400, list.clientHeight)) chargePlusAnciens();
+  }
+
+  // Le fil rétrécit quand la saisie grandit (ou que la barre de réponse
+  // apparaît) : s'il était en bas, il y reste
+  let filEnBas = true;
   list.addEventListener("scroll", () => {
-    if (list.scrollTop < 120) chargePlusAnciens();
+    filEnBas = list.scrollHeight - list.scrollTop - list.clientHeight < 80;
+    verifieHaut();
   }, { passive: true });
+  list.addEventListener("touchend", verifieHaut, { passive: true });
+  if (window.ResizeObserver) {
+    new ResizeObserver(() => {
+      if (filEnBas) list.scrollTop = list.scrollHeight;
+    }).observe(list);
+  }
 
   /* --- Photos éphémères ---
      La photo est rangée à part (photos/<clé du message>) pour que le fil
