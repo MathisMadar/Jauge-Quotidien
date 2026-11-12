@@ -2311,8 +2311,16 @@ function setupThread() {
   /* --- Envoi --- */
 
   function autoGrow(el) {
+    // La saisie du fil qui grandit fait rétrécir le fil : s'il était en
+    // bas, on l'y remet aussitôt, sans attendre d'autre événement
+    const fil = el === input ? list : null;
+    const enBas = fil && fil.scrollHeight - fil.scrollTop - fil.clientHeight < 80;
     el.style.height = "auto";
     el.style.height = Math.min(el.scrollHeight, 120) + "px";
+    if (enBas) {
+      fil.scrollTop = fil.scrollHeight;
+      requestAnimationFrame(() => { fil.scrollTop = fil.scrollHeight; });
+    }
   }
 
   function push(text, btn, onDone, re) {
