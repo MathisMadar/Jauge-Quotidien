@@ -2719,10 +2719,10 @@ function setupThread() {
   /* --- Arrivée des messages --- */
 
   /* --- Affichage des messages ---
-     Seuls les 70 derniers messages sont chargés à l'ouverture ; les plus
-     anciens arrivent par paquets de 70 quand on remonte en haut du fil. */
+     Seuls les 50 derniers messages sont chargés à l'ouverture ; les plus
+     anciens arrivent par paquets de 50 quand on remonte en haut du fil. */
 
-  const PAQUET = 70;
+  const PAQUET = 50;
   let oldestKey = null;   // plus ancien message affiché
   let toutCharge = false; // plus rien d'ancien à charger
   let chargement = null;  // chargement d'anciens messages en cours
