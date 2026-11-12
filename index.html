@@ -545,7 +545,9 @@
     min-height: 0;
     overflow-y: auto;
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    /* minmax(0, 1fr) : une vignette ou un titre long ne peut pas élargir
+       sa colonne au-delà du panneau */
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 6px;
     align-content: start;
     padding: 0 4px 8px;
@@ -553,6 +555,7 @@
 
   .gif-grid button,
   .gif-top button {
+    min-width: 0;
     border: none;
     background: none;
     padding: 0;
