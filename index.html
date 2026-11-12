@@ -311,6 +311,35 @@
 
   .thread-messages { overflow-x: hidden; }
 
+  /* L'autre est en train d'écrire (ou d'enregistrer un vocal) */
+  .typing {
+    align-self: flex-start;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    height: 37px;
+    padding: 0 14px;
+    border-radius: 16px;
+    border-bottom-left-radius: 5px;
+    background: var(--line);
+    flex-shrink: 0;
+  }
+  .typing .typing-mic { font-size: 13px; margin-right: 3px; }
+  .typing .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--text);
+    opacity: 0.35;
+    animation: typing-dot 1.2s ease-in-out infinite;
+  }
+  .typing .dot:nth-of-type(2) { animation-delay: 0.15s; }
+  .typing .dot:nth-of-type(3) { animation-delay: 0.3s; }
+  @keyframes typing-dot {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.35; }
+    30% { transform: translateY(-3px); opacity: 0.75; }
+  }
+
   .msg.swiping::before {
     content: "";
     position: absolute;
@@ -2275,6 +2304,10 @@ function setupThread() {
   let lastDayLabel = null;
   const nodes = {}; // clé du message -> éléments à mettre à jour
 
+  // Bulle « en train d'écrire » de l'autre, toujours en bas du fil
+  const typingEl = document.createElement("div");
+  typingEl.className = "typing";
+
   /* --- Envoi --- */
 
   function autoGrow(el) {
@@ -2304,13 +2337,19 @@ function setupThread() {
       }
       field.value = "";
       autoGrow(field);
+      if (withReply) signaleEcriture(null);
       const re = withReply && text ? takeReply() : null;
       push(text, btn, onDone, re);
     }
     btn.addEventListener("click", send);
-    field.addEventListener("input", () => autoGrow(field));
+    field.addEventListener("input", () => {
+      autoGrow(field);
+      // Une correction ne compte pas comme « en train d'écrire »
+      if (withReply) signaleEcriture(!editKey && field.value.trim() ? "t" : null);
+    });
     field.addEventListener("focus", suitLeClavier);
     field.addEventListener("blur", suitLeClavier);
+    if (withReply) field.addEventListener("blur", () => signaleEcriture(null));
     // Entrée envoie, Maj+Entrée passe à la ligne
     field.addEventListener("keydown", e => {
       if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
@@ -2865,6 +2904,7 @@ function setupThread() {
       list.appendChild(makeSeparator(label));
     }
     buildMessage(snap.key, m).forEach(el => list.appendChild(el));
+    if (typingEl.isConnected) list.appendChild(typingEl);
 
     // On reste en bas si on y était, et toujours pour ses propres messages
     if (enBas || m.u === ME) defileEnBas();
@@ -3799,6 +3839,7 @@ function setupThread() {
         if (r.sendWhenReady) sendVoice(r);
       };
       recorder.start();
+      signaleEcriture("v");
       showRecBar();
       startMeter(r);
       r.timer = setInterval(() => {
@@ -3824,6 +3865,7 @@ function setupThread() {
     stopRecorder(rec);
     rec = null;
     hideRecBar();
+    signaleEcriture(null);
   });
 
   document.getElementById("rec-send").addEventListener("click", e => {
@@ -3837,6 +3879,7 @@ function setupThread() {
   function sendVoice(r) {
     if (rec === r) rec = null;
     hideRecBar();
+    signaleEcriture(null);
     if (r.dur < 1 || !r.blob || !r.blob.size) {
       setPhotoStatus("Message vocal trop court.", true);
       return;
@@ -3860,6 +3903,79 @@ function setupThread() {
     .then(() => setPhotoStatus(""))
     .catch(err => setPhotoStatus("Message vocal non envoyé : " + err.message, true));
   }
+
+  /* --- En train d'écrire ---
+     ecrit/<qui> = { e: "t" (texte) ou "v" (vocal), ts }. Rafraîchi au plus
+     toutes les 3 s pendant la frappe, et toutes les 3 s pendant un
+     enregistrement. L'autre côté l'ignore au bout de 6 s sans nouvelle,
+     au cas où le téléphone perd le réseau sans pouvoir l'effacer. */
+
+  const ecritRef = db.ref(`${SECRET_PATH}/ecrit`);
+  const ECRIT_RAFRAICHI = 3000;
+  const ECRIT_PERIME = 6000;
+  let monEtat = null;
+  let derniereEcriture = 0;
+  let entretienVocal = null;
+
+  function ecritMonEtat() {
+    derniereEcriture = Date.now();
+    ecritRef.child(ME).set({ e: monEtat, ts: firebase.database.ServerValue.TIMESTAMP })
+      .catch(() => {});
+  }
+
+  function signaleEcriture(etat) {
+    if (!ME) return;
+    // Pendant un vocal, la frappe ne change rien
+    if (monEtat === "v" && etat === "t") return;
+    if (etat === monEtat && (!etat || Date.now() - derniereEcriture < ECRIT_RAFRAICHI)) return;
+    clearInterval(entretienVocal);
+    entretienVocal = null;
+    if (!etat) {
+      monEtat = null;
+      ecritRef.child(ME).remove().catch(() => {});
+      return;
+    }
+    // Effacé par le serveur si l'app perd la connexion
+    if (!monEtat) ecritRef.child(ME).onDisconnect().remove();
+    monEtat = etat;
+    ecritMonEtat();
+    if (etat === "v") entretienVocal = setInterval(ecritMonEtat, ECRIT_RAFRAICHI);
+  }
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") signaleEcriture(null);
+  });
+  window.addEventListener("pagehide", () => signaleEcriture(null));
+
+  let etatAutre = null;
+  let finIndicateur = null;
+
+  function afficheIndicateur() {
+    clearTimeout(finIndicateur);
+    const v = etatAutre;
+    const age = v && v.ts ? Date.now() + serverOffset - v.ts : Infinity;
+    if (!v || age > ECRIT_PERIME) {
+      typingEl.remove();
+      return;
+    }
+    const contenu = (v.e === "v" ? '<span class="typing-mic">🎤</span>' : "")
+      + '<span class="dot"></span><span class="dot"></span><span class="dot"></span>';
+    if (typingEl.dataset.e !== v.e) {
+      typingEl.dataset.e = v.e;
+      typingEl.innerHTML = contenu;
+    }
+    if (!typingEl.isConnected) {
+      const enBas = list.scrollHeight - list.scrollTop - list.clientHeight < 80;
+      list.appendChild(typingEl);
+      if (enBas) defileEnBas();
+    }
+    finIndicateur = setTimeout(afficheIndicateur, ECRIT_PERIME - Math.max(0, age) + 100);
+  }
+
+  ecritRef.child(OTHER()).on("value", snap => {
+    etatAutre = snap.val();
+    afficheIndicateur();
+  });
 
   /* Lecture : un seul lecteur pour tout le fil. iOS refuse de lancer un
      son après une attente réseau ; on « débloque » donc le lecteur avec un
