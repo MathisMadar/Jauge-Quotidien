@@ -524,6 +524,21 @@
     background: #000;
   }
 
+  /* Poignée du panneau GIF : on tire vers le haut pour l'agrandir */
+  .sheet-handle {
+    width: 38px;
+    height: 5px;
+    border-radius: 3px;
+    background: var(--text-soft);
+    opacity: 0.35;
+    margin: -6px auto 8px;
+    flex-shrink: 0;
+  }
+
+  .sheet-drag-zone { touch-action: none; padding-top: 4px; }
+
+  #gif-sheet.anime { transition: top 220ms ease, height 220ms ease; }
+
   .gif-search {
     font-size: 16px; /* en dessous, iOS zoome sur le champ */
     font-family: inherit;
@@ -1494,6 +1509,9 @@
 <div id="gif-sheet-backdrop" class="emoji-sheet-backdrop hidden"></div>
 <input type="file" id="nosgifs-file" accept="image/gif" multiple hidden>
 <div id="gif-sheet" class="emoji-sheet hidden">
+  <div class="sheet-drag-zone" id="gif-drag">
+    <div class="sheet-handle"></div>
+  </div>
   <input id="gif-search" class="gif-search" type="search" placeholder="Rechercher un GIF" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="search">
   <div id="gif-top-wrap" class="hidden">
     <div class="emoji-sheet-label">Les plus utilisés</div>
@@ -3521,13 +3539,73 @@ function setupThread() {
     setTimeout(() => { nosGifsStatus = null; if (!gifSheet.classList.contains("hidden")) renderGifs(); }, 6000);
   });
 
-  function placeGifSheet() {
-    if (gifSheet.classList.contains("hidden")) return;
+  // Deux hauteurs : 75 % de la zone visible à l'ouverture, 90 % agrandi
+  let gifAgrandi = false;
+  let gifTire = null; // glissement en cours
+
+  function gifZone() {
     const vv = window.visualViewport;
     const h = vv ? vv.height : window.innerHeight;
-    const top = vv ? vv.offsetTop : 0;
-    gifSheet.style.top = (top + h * 0.25) + "px";
-    gifSheet.style.height = (h * 0.75) + "px";
+    const haut = vv ? vv.offsetTop : 0;
+    return { h, haut, normal: haut + h * 0.25, grand: haut + h * 0.10, bas: haut + h };
+  }
+
+  function posGifSheet(top) {
+    const z = gifZone();
+    gifSheet.style.top = top + "px";
+    gifSheet.style.height = (z.bas - top) + "px";
+  }
+
+  function placeGifSheet() {
+    if (gifSheet.classList.contains("hidden") || gifTire) return;
+    const z = gifZone();
+    posGifSheet(gifAgrandi ? z.grand : z.normal);
+  }
+
+  /* Glisser la poignée ou la barre de recherche : vers le haut pour
+     agrandir, vers le bas pour réduire, encore plus bas pour fermer.
+     Un simple toucher sur la recherche ouvre toujours le clavier. */
+  function debutTirer(e) {
+    if (e.touches.length !== 1) return;
+    gifTire = { y0: e.touches[0].clientY, top0: gifSheet.getBoundingClientRect().top, tire: false };
+    gifSheet.classList.remove("anime");
+  }
+
+  function pendantTirer(e) {
+    if (!gifTire) return;
+    const dy = e.touches[0].clientY - gifTire.y0;
+    if (!gifTire.tire) {
+      if (Math.abs(dy) < 8) return;
+      gifTire.tire = true;
+      gifSearch.blur();
+    }
+    e.preventDefault();
+    const z = gifZone();
+    posGifSheet(Math.min(z.bas - 60, Math.max(z.grand, gifTire.top0 + dy)));
+  }
+
+  function finTirer(e) {
+    if (!gifTire) return;
+    const etat = gifTire;
+    gifTire = null;
+    if (!etat.tire) return; // simple toucher : comportement normal
+    e.preventDefault(); // pas de clavier après un glissement
+    const z = gifZone();
+    const top = gifSheet.getBoundingClientRect().top;
+    gifSheet.classList.add("anime");
+    if (top > z.normal + z.h * 0.12) {
+      closeGifSheet();
+      return;
+    }
+    gifAgrandi = top < (z.normal + z.grand) / 2;
+    posGifSheet(gifAgrandi ? z.grand : z.normal);
+  }
+
+  for (const zone of [document.getElementById("gif-drag"), gifSearch]) {
+    zone.addEventListener("touchstart", debutTirer, { passive: true });
+    zone.addEventListener("touchmove", pendantTirer, { passive: false });
+    zone.addEventListener("touchend", finTirer, { passive: false });
+    zone.addEventListener("touchcancel", finTirer, { passive: false });
   }
 
   if (window.visualViewport) {
@@ -3536,6 +3614,8 @@ function setupThread() {
   }
 
   function openGifSheet() {
+    gifAgrandi = false;
+    gifSheet.classList.remove("anime");
     gifSearch.value = "";
     renderGifs();
     gifGrid.scrollTop = 0;
