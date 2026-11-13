@@ -2494,6 +2494,7 @@ function setupThread() {
       el.editedMark.textContent = " · modifié";
       el.bubble.appendChild(el.editedMark);
     }
+    ajusteBulle(el.bubble);
   }
 
   // Toucher une citation ramène au message d'origine, mis en évidence
@@ -2815,6 +2816,61 @@ function setupThread() {
     return sep;
   }
 
+  /* Bulle de plusieurs lignes : le navigateur lui donne toute la largeur
+     permise, même si un mot parti à la ligne laisse un vide à droite. On
+     la resserre sur sa ligne la plus longue (les coupures ne changent pas).
+     Regroupé par image : on efface, on mesure tout, puis on écrit. */
+  const bullesAAjuster = new Set();
+  let ajustBullesPrevu = false;
+
+  function ajusteBulle(bubble) {
+    bullesAAjuster.add(bubble);
+    if (ajustBullesPrevu) return;
+    ajustBullesPrevu = true;
+    requestAnimationFrame(ajusteLesBulles);
+  }
+
+  function ajusteLesBulles() {
+    ajustBullesPrevu = false;
+    if (!list.clientWidth) return; // fil masqué : refait quand il s'affiche
+    const bulles = [...bullesAAjuster].filter(b => b.isConnected);
+    bullesAAjuster.clear();
+    const citations = bulles.map(b => b.querySelector(".msg-quote"));
+    bulles.forEach((b, i) => {
+      b.style.width = "";
+      // Largeur naturelle de la citation (icône comprise), le temps de mesurer
+      if (citations[i]) citations[i].style.width = "max-content";
+    });
+    const largeurs = bulles.map((b, i) => largeurResserree(b, citations[i]));
+    citations.forEach(c => { if (c) c.style.width = ""; });
+    bulles.forEach((b, i) => { if (largeurs[i]) b.style.width = largeurs[i] + "px"; });
+  }
+
+  function largeurResserree(bubble, citation) {
+    const texte = [...bubble.childNodes].find(n => n.nodeType === 3);
+    if (!texte) return null;
+    const r = document.createRange();
+    r.setStartBefore(texte);
+    r.setEndAfter(bubble.lastChild);
+    const rects = [...r.getClientRects()].filter(x => x.width > 0);
+    if (!rects.length) return null;
+    const haut = Math.min(...rects.map(x => x.top));
+    const bas = Math.max(...rects.map(x => x.bottom));
+    if (bas - haut < 26) return null; // une seule ligne : déjà ajustée
+    let w = Math.max(...rects.map(x => x.right)) - Math.min(...rects.map(x => x.left));
+    if (citation) w = Math.max(w, citation.getBoundingClientRect().width);
+    const cs = getComputedStyle(bubble);
+    const bords = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight)
+      + parseFloat(cs.borderLeftWidth) + parseFloat(cs.borderRightWidth);
+    return Math.ceil(w + bords + 0.5);
+  }
+
+  function ajusteToutesLesBulles() {
+    list.querySelectorAll(".msg").forEach(b => {
+      if ([...b.childNodes].some(n => n.nodeType === 3)) ajusteBulle(b);
+    });
+  }
+
   // Construit les éléments d'un message ; la page les insère où il faut
   function buildMessage(key, m) {
     const d = m.ts ? new Date(m.ts) : new Date();
@@ -2859,6 +2915,7 @@ function setupThread() {
       } else if (!m.vo) {
         textNode = document.createTextNode(m.t);
         bubble.appendChild(textNode);
+        ajusteBulle(bubble); // une fois insérée dans le fil
       }
     }
 
@@ -2991,9 +3048,15 @@ function setupThread() {
     verifieHaut();
   }, { passive: true });
   list.addEventListener("touchend", verifieHaut, { passive: true });
+  let largeurFil = 0;
   if (window.ResizeObserver) {
     new ResizeObserver(() => {
       if (filEnBas) list.scrollTop = list.scrollHeight;
+      // Fil affiché ou largeur changée (rotation) : bulles à remesurer
+      if (list.clientWidth && list.clientWidth !== largeurFil) {
+        largeurFil = list.clientWidth;
+        ajusteToutesLesBulles();
+      }
     }).observe(list);
   }
 
