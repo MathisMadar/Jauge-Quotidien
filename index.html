@@ -269,7 +269,7 @@
   .thread-messages {
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    gap: 3px;
     min-height: 200px;
     max-height: 55vh;
     overflow-y: auto;
@@ -305,11 +305,11 @@
 
   .msg { cursor: pointer; -webkit-user-select: none; user-select: none; }
 
-  /* 5 px entre deux messages de la même personne, 6 px quand on passe
+  /* 3 px entre deux messages de la même personne, 6 px quand on passe
      de l'un à l'autre (l'heure, même masquée, précède toujours la bulle suivante) */
   .msg-time.mine + .msg.theirs,
   .msg-time.mine + .typing,
-  .msg-time.theirs + .msg.mine { margin-top: 1px; }
+  .msg-time.theirs + .msg.mine { margin-top: 3px; }
 
   /* Glisser vers la droite pour répondre : le navigateur garde le
      défilement vertical, le geste horizontal revient à la bulle */
@@ -323,7 +323,7 @@
     display: flex;
     align-items: center;
     gap: 4px;
-    height: 37px;
+    height: 33px;
     padding: 0 14px;
     border-radius: 16px;
     border-bottom-left-radius: 5px;
@@ -445,7 +445,7 @@
     font-size: 10px;
     line-height: 1.6;
     /* Chevauche légèrement le bas de la bulle sans masquer le texte */
-    margin-top: -14px;
+    margin-top: -12px;
     margin-bottom: 0;
     width: fit-content;
     position: relative;
@@ -749,7 +749,7 @@
     font-size: 11px;
     color: var(--text-soft);
     padding: 0 6px;
-    margin-top: -4px;
+    margin-top: -2px;
     display: none;
   }
 
@@ -764,7 +764,7 @@
     font-size: 11px;
     color: var(--text-soft);
     font-weight: 600;
-    padding: 6px 0 2px;
+    padding: 8px 0 4px;
     text-transform: capitalize;
   }
 
