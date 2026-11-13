@@ -586,9 +586,14 @@
     margin: 0 4px 10px;
   }
 
-  .gif-top { display: flex; gap: 6px; overflow-x: auto; margin: 0 4px 10px; flex-shrink: 0; }
-
-  .gif-top button { flex-shrink: 0; width: 84px; }
+  /* Les 4 plus utilisés, sur une seule ligne qui tient dans le panneau */
+  .gif-top {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+    margin: 0 4px 10px;
+    flex-shrink: 0;
+  }
 
   .gif-grid {
     flex: 1;
@@ -3569,7 +3574,7 @@ function setupThread() {
     const counts = gifCounts();
     const nosParId = Object.fromEntries(NOS_GIFS.map(g => ["n:" + g.id, { ...g, nos: true }]));
     const top = Object.keys(counts).filter(id => GIFS_BY_ID[id] || nosParId[id])
-      .sort((a, b) => counts[b] - counts[a]).slice(0, 8);
+      .sort((a, b) => counts[b] - counts[a]).slice(0, 4);
     gifTop.replaceChildren(...top.map(id => gifButton(nosParId[id] || GIFS_BY_ID[id])));
     gifTopWrap.classList.toggle("hidden", !!q || !top.length);
   }
