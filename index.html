@@ -3064,9 +3064,11 @@ function setupThread() {
     return data;
   }
 
-  // Texte court en blanc, sans bande, centré ; taille relative à la photo
-  function drawPhotoText(ctx, w, h, text) {
-    if (!text) return;
+  // Texte court en blanc, sans bande ; taille relative à la photo.
+  // pos = centre voulu du texte (fractions de la photo), ramené dans le
+  // cadre. Rend le centre réel et la taille du bloc, en pixels de la photo.
+  function drawPhotoText(ctx, w, h, text, pos = { x: 0.5, y: 0.5 }) {
+    if (!text) return null;
     const size = Math.round(w * 0.075);
     ctx.save();
     ctx.font = `700 ${size}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
@@ -3085,8 +3087,17 @@ function setupThread() {
     }
     if (line) lines.push(line);
     const lh = size * 1.2;
-    lines.forEach((l, i) => ctx.fillText(l, w / 2, h / 2 + (i - (lines.length - 1) / 2) * lh));
+    const bw = Math.max(...lines.map(l => ctx.measureText(l).width));
+    const bh = lines.length * lh;
+    const marge = size * 0.3; // l'ombre reste dans la photo
+    const borne = (v, taille, total) => taille + 2 * marge >= total
+      ? total / 2
+      : Math.min(total - taille / 2 - marge, Math.max(taille / 2 + marge, v));
+    const cx = borne(pos.x * w, bw, w);
+    const cy = borne(pos.y * h, bh, h);
+    lines.forEach((l, i) => ctx.fillText(l, cx, cy + (i - (lines.length - 1) / 2) * lh));
     ctx.restore();
+    return { cx, cy, bw, bh };
   }
 
   function sendPhotoData(data) {
@@ -3126,6 +3137,8 @@ function setupThread() {
   let camFlashOn = false;
   let camBase = null;       // photo sans texte
   let camText = "";
+  let camTextPos = { x: 0.5, y: 0.5 }; // centre du texte, en fractions de la photo
+  let camTextRect = null;               // texte affiché, en pixels de la photo
   let camSource = "camera"; // "camera" ou "gallery"
   let camZoom = null;       // {min, max, cur} si la caméra accepte le zoom
 
@@ -3182,6 +3195,7 @@ function setupThread() {
   function showLive() {
     camBase = null;
     camText = "";
+    camTextPos = { x: 0.5, y: 0.5 };
     camShot.classList.add("hidden");
     camHint.classList.add("hidden");
     camTextEdit.classList.add("hidden");
@@ -3210,6 +3224,7 @@ function setupThread() {
     stopCamera();
     camBase = canvas;
     camText = "";
+    camTextPos = { x: 0.5, y: 0.5 };
     camVideo.classList.add("hidden");
     camMsg.classList.add("hidden");
     camShutter.classList.add("hidden");
@@ -3226,7 +3241,7 @@ function setupThread() {
     camShot.height = camBase.height;
     const ctx = camShot.getContext("2d");
     ctx.drawImage(camBase, 0, 0);
-    if (withText) drawPhotoText(ctx, camBase.width, camBase.height, camText);
+    camTextRect = withText ? drawPhotoText(ctx, camBase.width, camBase.height, camText, camTextPos) : null;
   }
 
   // Capture de l'image entière, telle qu'affichée (sans recadrage)
@@ -3332,8 +3347,60 @@ function setupThread() {
     photoFile.click();
   });
 
+  // Texte écrit : on le fait glisser du doigt, sans sortir de la photo.
+  // Un toucher sans glisser garde son rôle (ouvrir la saisie).
+  let textDrag = null;
+  let ignoreClick = false;
+
+  // Point de l'écran -> pixels de la photo (affichée en « contain »)
+  function versPhoto(e) {
+    const r = camShot.getBoundingClientRect();
+    const k = Math.min(r.width / camShot.width, r.height / camShot.height);
+    return {
+      x: (e.clientX - r.left - (r.width - camShot.width * k) / 2) / k,
+      y: (e.clientY - r.top - (r.height - camShot.height * k) / 2) / k,
+      k
+    };
+  }
+
+  camShot.addEventListener("pointerdown", e => {
+    if (!camBase || !camTextRect || !camTextEdit.classList.contains("hidden")) return;
+    const p = versPhoto(e);
+    const t = camTextRect;
+    const prise = 24 / p.k; // 24 px d'écran autour du texte
+    if (Math.abs(p.x - t.cx) > t.bw / 2 + prise || Math.abs(p.y - t.cy) > t.bh / 2 + prise) return;
+    textDrag = { id: e.pointerId, sx: e.clientX, sy: e.clientY, px: p.x, py: p.y, cx: t.cx, cy: t.cy, moved: false };
+    camShot.setPointerCapture(e.pointerId);
+  });
+
+  camShot.addEventListener("pointermove", e => {
+    if (!textDrag || e.pointerId !== textDrag.id) return;
+    if (!textDrag.moved && Math.hypot(e.clientX - textDrag.sx, e.clientY - textDrag.sy) < 6) return;
+    textDrag.moved = true;
+    const p = versPhoto(e);
+    camTextPos = {
+      x: (textDrag.cx + p.x - textDrag.px) / camBase.width,
+      y: (textDrag.cy + p.y - textDrag.py) / camBase.height
+    };
+    renderShot();
+    // Position gardée telle qu'affichée (déjà ramenée dans le cadre)
+    if (camTextRect) camTextPos = { x: camTextRect.cx / camBase.width, y: camTextRect.cy / camBase.height };
+  });
+
+  function finTextDrag(e) {
+    if (!textDrag || e.pointerId !== textDrag.id) return;
+    if (textDrag.moved) {
+      ignoreClick = true;
+      setTimeout(() => { ignoreClick = false; }, 400);
+    }
+    textDrag = null;
+  }
+  camShot.addEventListener("pointerup", finTextDrag);
+  camShot.addEventListener("pointercancel", finTextDrag);
+
   // Texte : un toucher sur la photo ouvre la saisie, à nouveau pour modifier
   camShot.addEventListener("click", () => {
+    if (ignoreClick) { ignoreClick = false; return; }
     if (!camBase) return;
     if (!camTextEdit.classList.contains("hidden")) { camTextInput.blur(); return; }
     renderShot(false);
@@ -3363,7 +3430,7 @@ function setupThread() {
     final.height = camBase.height;
     const ctx = final.getContext("2d");
     ctx.drawImage(camBase, 0, 0);
-    drawPhotoText(ctx, final.width, final.height, camText);
+    drawPhotoText(ctx, final.width, final.height, camText, camTextPos);
     const data = canvasToJpeg(final);
     closeCamera();
     sendPhotoData(data);
