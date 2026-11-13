@@ -2839,12 +2839,12 @@ function setupThread() {
       if (m.gif) {
         bubble.classList.add("gif");
         if (m.gif.startsWith("n:")) {
-          // GIF de « Nos GIF » : chargé depuis la base, 7 lectures
+          // GIF de « Nos GIF » : chargé depuis la base, 7 lectures et au moins 10 s
           const img = document.createElement("img");
           img.className = "msg-gif";
           img.alt = "GIF";
           bubble.appendChild(img);
-          nosGifUrl(m.gif.slice(2), 7)
+          nosGifUrl(m.gif.slice(2), "discussion")
             .then(url => { img.src = url; })
             .catch(() => { img.replaceWith(document.createTextNode("🎞️ GIF indisponible")); });
         } else if (GIFS_BY_ID[m.gif]) {
@@ -3417,7 +3417,8 @@ function setupThread() {
      nosgifs/<id> = {t, by, ts} (liste légère) ; nosgifsdata/<id> = {d}
      (le fichier). Chaque téléphone garde les fichiers en cache après le
      premier affichage. Le nombre de lectures est réglé à l'affichage :
-     7 dans la discussion, en boucle dans le panneau. */
+     dans la discussion, 7 lectures et au moins 10 s (un GIF court se
+     répète davantage) ; en boucle dans le panneau. */
 
   const nosGifsRef = db.ref(`${SECRET_PATH}/nosgifs`);
   const nosGifsDataRef = db.ref(`${SECRET_PATH}/nosgifsdata`);
@@ -3481,11 +3482,52 @@ function setupThread() {
     return { bytes: out, type: "image/gif" };
   }
 
+  // Durée d'une lecture, en ms. Comme les navigateurs, une image de 0 ou
+  // 10 ms dure en fait 100 ms.
+  function dureeLecture(src) {
+    const b = new Uint8Array(src);
+    const str = (i, n) => String.fromCharCode(...b.slice(i, i + n));
+    const image = d => (d <= 10 ? 100 : d);
+    let total = 0;
+    if (str(0, 4) === "RIFF" && str(8, 4) === "WEBP") {
+      for (let i = 12; i + 8 <= b.length;) {
+        const taille = b[i + 4] | b[i + 5] << 8 | b[i + 6] << 16 | b[i + 7] << 24;
+        if (str(i, 4) === "ANMF") total += image(b[i + 20] | b[i + 21] << 8 | b[i + 22] << 16);
+        i += 8 + taille + (taille & 1);
+      }
+      return total;
+    }
+    // GIF : délai du bloc de contrôle (en centièmes) qui précède chaque image
+    const sautSousBlocs = i => { while (i < b.length && b[i]) i += b[i] + 1; return i + 1; };
+    let i = 13 + (b[10] & 0x80 ? 3 * (1 << ((b[10] & 7) + 1)) : 0);
+    let delai = 0;
+    while (i < b.length) {
+      if (b[i] === 0x21) {
+        if (b[i + 1] === 0xF9) delai = (b[i + 4] | b[i + 5] << 8) * 10;
+        i = sautSousBlocs(i + 2);
+      } else if (b[i] === 0x2C) {
+        total += image(delai);
+        delai = 0;
+        const local = b[i + 9] & 0x80 ? 3 * (1 << ((b[i + 9] & 7) + 1)) : 0;
+        i = sautSousBlocs(i + 10 + local + 1);
+      } else break;
+    }
+    return total;
+  }
+
+  // Dans la discussion : 7 lectures, plus si le GIF est court, pour
+  // durer au moins 10 s (à un dixième de seconde près)
+  function lecturesDiscussion(src) {
+    const d = dureeLecture(src);
+    return d > 0 ? Math.min(1000, Math.max(7, Math.ceil(9900 / d))) : 7;
+  }
+
   function nosGifUrl(id, lectures) {
     const cle = id + ":" + lectures;
     if (!nosGifsUrls.has(cle)) {
       nosGifsUrls.set(cle, nosGifBytes(id).then(bytes => {
-        const r = avecLectures(bytes, lectures);
+        const n = lectures === "discussion" ? lecturesDiscussion(bytes) : lectures;
+        const r = avecLectures(bytes, n);
         return URL.createObjectURL(new Blob([r.bytes], { type: r.type }));
       }).catch(err => { nosGifsUrls.delete(cle); throw err; }));
     }
