@@ -282,7 +282,7 @@
 
   .msg {
     max-width: 78%;
-    padding: 9px 13px;
+    padding: 7px 10px;
     border-radius: 16px;
     font-size: 14px;
     line-height: 1.35;
@@ -304,6 +304,12 @@
   }
 
   .msg { cursor: pointer; -webkit-user-select: none; user-select: none; }
+
+  /* 5 px entre deux messages de la même personne, 6 px quand on passe
+     de l'un à l'autre (l'heure, même masquée, précède toujours la bulle suivante) */
+  .msg-time.mine + .msg.theirs,
+  .msg-time.mine + .typing,
+  .msg-time.theirs + .msg.mine { margin-top: 1px; }
 
   /* Glisser vers la droite pour répondre : le navigateur garde le
      défilement vertical, le geste horizontal revient à la bulle */
@@ -539,7 +545,7 @@
   }
 
   /* GIF : extraits de films du domaine public, hébergés avec l'app */
-  .msg.gif { padding: 4px; }
+  .msg.gif { padding: 2px; }
 
   .msg.gif .msg-quote { margin: 4px 8px 6px; }
 
